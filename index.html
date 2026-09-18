@@ -246,13 +246,26 @@
 
   <p class="subtitle" id="edit-tip" style="margin:-8px 0 0;"></p>
   <p class="subtitle" id="last-sync-label" style="margin:-8px 0 0;" hidden></p>
+  <p class="subtitle" id="upload-company-banner" style="margin:-8px 0 0;" hidden></p>
 
   <div class="view-tabs" id="view-tabs">
     <button type="button" class="view-tab active" data-view="collect">취합현황</button>
     <button type="button" class="view-tab" data-view="upload">업로드현황</button>
   </div>
 
-  <section class="table-card">
+  <section class="table-card" id="upload-company-gate" hidden>
+    <div style="padding:22px; display:flex; flex-direction:column; gap:10px; align-items:flex-start;">
+      <p class="subtitle" style="margin:0;">자료를 업로드하실 기업명을 입력해주세요. 목록에서 골라주시면 그 기업 현황만 보여드려요.</p>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <input id="upload-company-input" list="upload-company-list" type="text" placeholder="기업명 검색" style="min-width:240px;">
+        <button id="upload-company-confirm-btn" class="btn btn-primary" type="button">확인</button>
+      </div>
+      <p class="subtitle" id="upload-company-error" style="margin:0; color:#b3432f;" hidden></p>
+    </div>
+  </section>
+  <datalist id="upload-company-list"></datalist>
+
+  <section class="table-card" id="table-card-main">
     <div class="table-wrap">
       <table>
         <thead id="table-head"></thead>
@@ -338,6 +351,25 @@
   }
   function clearAuth(){
     try{ localStorage.removeItem(AUTH_STORAGE_KEY); }catch(e){}
+  }
+
+  // ── 권역 공유 계정에서 "내 기업"만 보게 좁혀주는 기능 ─────────────────────
+  // 관리자·전체 열람(All_ai) 계정은 그대로 전체를 보고, 권역이 고정된 협력사
+  // 계정(예: Sccei_ai)만 업로드현황 탭에서 기업명을 먼저 골라야 그 기업 한 곳만 보여요.
+  // 같은 계정을 여러 기업이 나눠 쓰다 보니, 목록을 쭉 보여주면 실수로 다른 기업 칸을
+  // 건드릴 위험이 있어서 아예 화면 자체를 좁혀버리는 방식이에요. 한 번 고른 기업명은
+  // 이 브라우저·이 계정에 한해 기억해뒀다가 다음 접속 때 바로 보여줘요.
+  var uploadCompanySelection = null;
+  function isRegionScopedViewer(){ return !isAdmin() && !!(AUTH.region && AUTH.region !== 'all'); }
+  function uploadCompanyStorageKey(){ return 'mt_upload_company_v1:' + (AUTH.u || ''); }
+  function loadUploadCompanySelection(){
+    try{ return localStorage.getItem(uploadCompanyStorageKey()) || null; }catch(e){ return null; }
+  }
+  function saveUploadCompanySelection(name){
+    try{ localStorage.setItem(uploadCompanyStorageKey(), name); }catch(e){}
+  }
+  function clearUploadCompanySelection(){
+    try{ localStorage.removeItem(uploadCompanyStorageKey()); }catch(e){}
   }
 
   function uid(){ return 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
@@ -842,7 +874,9 @@
 
   function exportToExcel(){
     return ensureExcelJSLoaded().then(function(){
-      var rows = sortRows(STATE.rows.filter(matchesFilters));
+      // visibleRows()를 그대로 써요 — 권역 공유 계정이 업로드현황에서 기업을 골라둔
+      // 상태라면, 엑셀로도 그 기업 것만 나가야지 권역 전체가 새어나가면 안 되니까요.
+      var rows = sortRows(visibleRows());
       var workbook = new ExcelJS.Workbook();
       workbook.creator = '멘토링 트래커';
       workbook.created = new Date();
@@ -941,8 +975,43 @@
     roundNavEl.innerHTML = buildNavHTML(items, current, 'round');
   }
 
+  function shouldGateUpload(){
+    return viewMode === 'upload' && isRegionScopedViewer() && !uploadCompanySelection;
+  }
+
+  function renderUploadCompanyList(){
+    var listEl = document.getElementById('upload-company-list');
+    if(!listEl) return;
+    var names = [];
+    STATE.rows.forEach(function(r){ if(r.company && names.indexOf(r.company) === -1) names.push(r.company); });
+    names.sort();
+    listEl.innerHTML = names.map(function(n){ return '<option value="' + escapeHtml(n) + '">'; }).join('');
+  }
+
+  function renderUploadCompanyBanner(){
+    var banner = document.getElementById('upload-company-banner');
+    if(!banner) return;
+    var show = viewMode === 'upload' && isRegionScopedViewer() && !!uploadCompanySelection;
+    banner.hidden = !show;
+    if(show){
+      banner.innerHTML = escapeHtml(uploadCompanySelection) + ' 기업의 업로드 현황이에요 · ' +
+        '<button type="button" id="upload-company-switch-btn" style="background:none;border:none;padding:0;color:var(--accent);text-decoration:underline;cursor:pointer;font:inherit;">다른 기업 조회</button>';
+    }
+  }
+
   function renderTable(){
-    var filtered = sortRows(STATE.rows.filter(matchesFilters));
+    var gate = shouldGateUpload();
+    var gateEl = document.getElementById('upload-company-gate');
+    var mainCardEl = document.getElementById('table-card-main');
+    if(gateEl) gateEl.hidden = !gate;
+    if(mainCardEl) mainCardEl.hidden = gate;
+    renderUploadCompanyBanner();
+    if(gate){
+      renderUploadCompanyList();
+      return;
+    }
+
+    var filtered = sortRows(visibleRows());
     var colCount = viewMode === 'upload' ? (7 + STATE.sessionCount) : (11 + STATE.sessionCount);
     if(filtered.length === 0){
       rowsBody.innerHTML = '<tr class="empty-row"><td colspan="' + colCount + '">' +
@@ -955,9 +1024,18 @@
     rowsBody.innerHTML = filtered.map(viewMode === 'upload' ? renderUploadRowHTML : renderRowHTML).join('');
   }
 
+  // 지금 화면에 실제로 보여줄 행들을 걸러내요. 권역 공유 계정이 업로드현황에서 기업을
+  // 골랐으면 다른 필터와 무관하게 그 기업 한 곳만, 아니면 평소처럼 필터 조건대로 걸러요.
+  function visibleRows(){
+    if(viewMode === 'upload' && isRegionScopedViewer() && uploadCompanySelection){
+      return STATE.rows.filter(function(r){ return r.company === uploadCompanySelection; });
+    }
+    return STATE.rows.filter(matchesFilters);
+  }
+
   function renderRowCountLabel(){
     var total = STATE.rows.length;
-    var shown = STATE.rows.filter(matchesFilters).length;
+    var shown = visibleRows().length;
     rowCountLabel.textContent = (shown === total) ? ('전체 ' + total + '개사') : (shown + '개 표시 중 · 전체 ' + total + '개사');
   }
 
@@ -977,13 +1055,18 @@
     var admin = isAdmin();
     var scopedRegion = !!(AUTH.region && AUTH.region !== 'all');
     var showCollectionControls = admin && viewMode === 'collect';
+    var uploadGated = shouldGateUpload();
     addRowBtn.hidden = !showCollectionControls;
     driveSyncBtn.hidden = !showCollectionControls;
     if(sessionSettingsBtn) sessionSettingsBtn.hidden = !showCollectionControls;
-    if(exportExcelBtn) exportExcelBtn.hidden = false;
+    // 권역 공유 계정이 아직 기업을 안 골랐으면(uploadGated), 엑셀 내보내기도 잠가둬요.
+    // 안 그러면 고르기 전 상태에서 눌러서 권역 전체 데이터가 그대로 새어나갈 수 있어요.
+    if(exportExcelBtn) exportExcelBtn.hidden = uploadGated;
     var tip = document.getElementById('edit-tip');
     if(tip){
-      if(viewMode === 'upload'){
+      if(uploadGated){
+        tip.hidden = true;
+      } else if(viewMode === 'upload'){
         tip.hidden = false;
         tip.textContent = '파란 테두리 칸은 취합현황에 이미 자료가 올라온 회차·서류예요. 외부 사이트에 업로드를 마쳤으면 체크해주세요 — 관리자와 협력사 계정 모두 체크할 수 있어요. 색깔 없는 칸(취합현황에 자료가 아직 없는 항목)은 체크할 수 없어요.';
       } else {
@@ -1095,6 +1178,8 @@
         throw err;
       }
       if(data && data.role){ AUTH.role = data.role; AUTH.region = data.region; }
+      // 로그인 계정(u)이 정해졌으니, 이 계정·이 브라우저에서 예전에 골라둔 기업이 있으면 불러와요.
+      uploadCompanySelection = loadUploadCompanySelection();
       STATE.lastSync = (data && data.lastSync) || null;
       // sessionCount는 normalizeRow가 세션 배열 길이를 결정할 때 참조하니, map(normalizeRow)보다
       // 먼저 갱신해둬요.
@@ -1507,6 +1592,45 @@
           sessionCountSaveBtn.disabled = false;
           sessionCountSaveBtn.textContent = originalLabel;
         });
+    });
+
+    // ── 권역 공유 계정의 "기업 선택" 게이트 ──────────────────────────────
+    var uploadCompanyInput = document.getElementById('upload-company-input');
+    var uploadCompanyConfirmBtn = document.getElementById('upload-company-confirm-btn');
+    var uploadCompanyErrorEl = document.getElementById('upload-company-error');
+    var uploadCompanyBannerEl = document.getElementById('upload-company-banner');
+
+    function confirmUploadCompany(){
+      var typed = (uploadCompanyInput.value || '').trim();
+      if(!typed) return;
+      var match = STATE.rows.some(function(r){ return r.company === typed; });
+      if(!match){
+        if(uploadCompanyErrorEl){
+          uploadCompanyErrorEl.hidden = false;
+          uploadCompanyErrorEl.textContent = '목록에 있는 기업명과 정확히 일치해야 조회할 수 있어요. 자동완성 목록에서 골라주세요.';
+        }
+        return;
+      }
+      if(uploadCompanyErrorEl) uploadCompanyErrorEl.hidden = true;
+      uploadCompanySelection = typed;
+      saveUploadCompanySelection(typed);
+      applyRoleUI();
+      renderTable();
+    }
+
+    if(uploadCompanyConfirmBtn) uploadCompanyConfirmBtn.addEventListener('click', confirmUploadCompany);
+    if(uploadCompanyInput) uploadCompanyInput.addEventListener('keydown', function(e){
+      if(e.key === 'Enter'){ e.preventDefault(); confirmUploadCompany(); }
+    });
+    if(uploadCompanyBannerEl) uploadCompanyBannerEl.addEventListener('click', function(e){
+      if(e.target.closest('#upload-company-switch-btn')){
+        uploadCompanySelection = null;
+        clearUploadCompanySelection();
+        if(uploadCompanyInput) uploadCompanyInput.value = '';
+        if(uploadCompanyErrorEl) uploadCompanyErrorEl.hidden = true;
+        applyRoleUI();
+        renderTable();
+      }
     });
   }
 
