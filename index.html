@@ -96,7 +96,10 @@
   td.center, th.col-session, th.col-doc, th.col-complete, th.col-flag{ text-align:center; }
   .col-date{ width:126px; } .col-folder{ width:78px; } .col-region{ width:112px; }
   .col-company{ width:176px; } .col-session{ width:56px; } .col-doc{ width:76px; }
-  .col-complete{ width:76px; } .col-flag{ width:100px; } .col-remark{ width:200px; } .col-email{ width:190px; } .col-actions{ width:68px; }
+  .col-complete{ width:76px; } .col-flag{ width:100px; } .col-remark{ width:200px; } .col-email{ width:190px; } .col-drive-link{ width:52px; text-align:center; } .col-actions{ width:68px; }
+  .folder-link{ display:inline-block; font-size:16px; text-decoration:none; cursor:pointer; }
+  .folder-link:hover{ opacity:0.7; }
+  .folder-link-empty{ color:var(--ink-muted); font-size:13px; }
   .col-progress{ width:92px; }
   .mini-gauge{ display:flex; flex-direction:column; align-items:center; gap:3px; }
   .mini-gauge-track{ width:64px; height:6px; border-radius:999px; background:var(--surface-2); overflow:hidden; }
@@ -460,7 +463,7 @@
       sessions: sessions, plan: plan, report: report,
       complete: complete,
       flag: computeAutoFlag(dateVal, complete), remark: r.remark || '', round: r.round || DEFAULT_ROUND,
-      contactEmail: r.contactEmail || ''
+      contactEmail: r.contactEmail || '', folderId: r.folderId || ''
     };
     uploadFieldNames(n).forEach(function(f){ normalized[f] = !!r[f]; });
     return normalized;
@@ -568,6 +571,7 @@
         '<th class="col-flag">이슈</th>' +
         '<th class="col-remark">비고</th>' +
         '<th class="col-email">담당자 이메일</th>' +
+        (isAdmin() ? '<th class="col-drive-link">폴더</th>' : '') +
         '<th class="col-actions"></th>';
     }
     tableHeadEl.innerHTML = '<tr>' + headRow + '</tr>';
@@ -655,6 +659,15 @@
     return html;
   }
 
+  // 드라이브 동기화로 자동 채워지는 값이라 직접 입력/수정은 못 해요. 관리자에게만 보여줘요
+  // (권역 공유 계정은 내부 드라이브 폴더 접근 권한이 없어서, 링크를 눌러도 오류만 보게 되니까요).
+  function folderLinkHTML(r){
+    if(!r.folderId) return '<span class="folder-link-empty" title="드라이브에서 불러오기를 하면 자동으로 채워져요">-</span>';
+    var url = 'https://drive.google.com/drive/folders/' + encodeURIComponent(r.folderId);
+    return '<a class="folder-link" href="' + url + '" target="_blank" rel="noopener noreferrer" title="' +
+      escapeHtml(r.company || '') + ' 드라이브 폴더 열기">📁</a>';
+  }
+
   function renderRowHTML(r){
     var admin = isAdmin();
     return '' +
@@ -674,6 +687,7 @@
       '<td class="center">' + flagCellHTML(r) + '</td>' +
       '<td>' + textCellHTML({ type:'text', field:'remark', value:r.remark, placeholder: r.date ? '메모' : '협약일자 설정X' }) + '</td>' +
       '<td>' + textCellHTML({ type:'email', field:'contactEmail', value:r.contactEmail, placeholder:'지연 알림 받을 이메일' }) + '</td>' +
+      (admin ? '<td class="center">' + folderLinkHTML(r) + '</td>' : '') +
       '<td class="center">' + (admin ? '<button type="button" class="delete-btn" data-action="delete">삭제</button>' : '') + '</td>' +
     '</tr>';
   }
@@ -761,14 +775,10 @@
 
   function buildCollectSheet(workbook, rows){
     var n = STATE.sessionCount;
+    var admin = isAdmin();
     var sheet = workbook.addWorksheet('취합현황', { views: [{ state: 'frozen', ySplit: 2 }] });
     var sessionColDefs = timesArray(n, function(i){ return { header: (i+1)+'회차', key: 's'+(i+1), width: 7 }; });
-    sheet.columns = [
-      { header: '협약일자', key: 'date', width: 13 },
-      { header: '폴더NC', key: 'folderNc', width: 9 },
-      { header: '권역', key: 'region', width: 10 },
-      { header: '멘티기업', key: 'company', width: 26 }
-    ].concat(sessionColDefs, [
+    var tailColDefs = [
       { header: '계획서', key: 'plan', width: 9 },
       { header: '보고서', key: 'report', width: 9 },
       { header: '수행도', key: 'progress', width: 9 },
@@ -776,7 +786,16 @@
       { header: '이슈', key: 'flag', width: 9 },
       { header: '비고', key: 'remark', width: 28 },
       { header: '담당자 이메일', key: 'contactEmail', width: 24 }
-    ]);
+    ];
+    // 드라이브 폴더 링크는 관리자 전용이에요 — 권역 공유 계정은 어차피 그 폴더에 접근 권한이
+    // 없어서 링크를 눌러도 오류만 보게 되니, 그 계정이 내보낸 엑셀에는 아예 넣지 않아요.
+    if(admin) tailColDefs.push({ header: '드라이브 폴더', key: 'folderLink', width: 14 });
+    sheet.columns = [
+      { header: '협약일자', key: 'date', width: 13 },
+      { header: '폴더NC', key: 'folderNc', width: 9 },
+      { header: '권역', key: 'region', width: 10 },
+      { header: '멘티기업', key: 'company', width: 26 }
+    ].concat(sessionColDefs, tailColDefs);
     var columnDefs = sheet.columns;
     var sessionKeys = sessionColDefs.map(function(c){ return c.key; });
     sheet.spliceRows(1, 0, []);
@@ -794,6 +813,15 @@
       };
       sessionKeys.forEach(function(key, i){ values[key] = r.sessions[i] ? '✓' : ''; });
       var row = sheet.addRow(values);
+      if(admin){
+        var folderCell = row.getCell('folderLink');
+        if(r.folderId){
+          folderCell.value = { text: '열기', hyperlink: 'https://drive.google.com/drive/folders/' + r.folderId };
+          folderCell.font = { color: { argb: 'FF1155CC' }, underline: true };
+        } else {
+          folderCell.value = '-';
+        }
+      }
       row.getCell('progress').numFmt = '0"%"';
       row.eachCell(function(cell, colNumber){
         var key = columnDefs[colNumber - 1] && columnDefs[colNumber - 1].key;
@@ -1017,7 +1045,7 @@
     }
 
     var filtered = sortRows(visibleRows());
-    var colCount = viewMode === 'upload' ? (7 + STATE.sessionCount) : (12 + STATE.sessionCount);
+    var colCount = viewMode === 'upload' ? (7 + STATE.sessionCount) : (12 + STATE.sessionCount + (isAdmin() ? 1 : 0));
     if(filtered.length === 0){
       rowsBody.innerHTML = '<tr class="empty-row"><td colspan="' + colCount + '">' +
         (STATE.rows.length === 0
@@ -1460,7 +1488,7 @@
         folderNc: String(STATE.rows.length + 1),
         region: lastRegion || '', company: '',
         sessions: timesArray(STATE.sessionCount, function(){ return false; }),
-        plan:false, report:false, complete:false, flag:'none', remark:'', contactEmail:'',
+        plan:false, report:false, complete:false, flag:'none', remark:'', contactEmail:'', folderId:'',
         round: filters.round !== 'all' ? filters.round : DEFAULT_ROUND
       });
       STATE.rows.push(newRow);
