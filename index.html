@@ -1,0 +1,1521 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>멘토링 트래커</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@400;500;700;800;900&display=swap">
+<style>
+  :root{
+    --bg:#F7F5F1; --surface:#FFFFFF; --surface-2:#EFEAE1; --border:#E1D9CB;
+    --ink:#20241F; --ink-muted:#736C5F; --accent:#2B6777; --accent-strong:#1D4A56; --accent-soft:#DCEAEA;
+    --success:#2F8F5B; --success-soft:#DEF0E4; --warning:#B8842A; --warning-soft:#F7E9D2;
+    --alert:#C1631F; --alert-soft:#F8E3CC;
+    --danger:#B94A3D; --danger-soft:#F6DEDA; --shadow:rgba(32,36,31,0.08);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#15191A; --surface:#1E2426; --surface-2:#262D2F; --border:#38403F;
+      --ink:#ECE9E1; --ink-muted:#9CA39D; --accent:#7BC2CD; --accent-strong:#9BD4DD; --accent-soft:#213537;
+      --success:#5FCB8F; --success-soft:#1A3626; --warning:#E3B15C; --warning-soft:#3B2C14;
+      --alert:#F0A268; --alert-soft:#402A16;
+      --danger:#E58474; --danger-soft:#3C201C; --shadow:rgba(0,0,0,0.4);
+    }
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:var(--ink); font-family:'Gothic A1', -apple-system, BlinkMacSystemFont, 'Malgun Gothic', sans-serif; font-variant-numeric: tabular-nums; }
+  .layout{ max-width:1460px; margin:0 auto; padding:28px 16px 64px; display:flex; align-items:flex-start; gap:20px; }
+  .sidebar{ width:208px; flex:none; background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:14px 10px; box-shadow:0 1px 2px var(--shadow); position:sticky; top:20px; max-height:calc(100vh - 40px); overflow-y:auto; }
+  .sidebar-title{ font-size:12px; font-weight:700; color:var(--ink-muted); text-transform:uppercase; letter-spacing:.04em; padding:6px 10px 10px; }
+  .region-nav{ display:flex; flex-direction:column; gap:2px; }
+  .region-nav-item{ display:flex; justify-content:space-between; align-items:center; gap:8px; width:100%; padding:9px 10px; border:none; border-radius:10px; background:none; color:var(--ink); font-family:inherit; font-size:14px; font-weight:600; text-align:left; cursor:pointer; }
+  .region-nav-item:hover{ background:var(--surface-2); }
+  .region-nav-item.active{ background:var(--accent-soft); color:var(--accent-strong); }
+  .region-nav-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .region-nav-count{ flex:none; font-size:11.5px; font-weight:700; color:var(--ink-muted); background:var(--surface-2); padding:2px 8px; border-radius:999px; }
+  .region-nav-item.active .region-nav-count{ background:var(--surface); color:var(--accent-strong); }
+  .page{ flex:1; min-width:0; display:flex; flex-direction:column; gap:20px; }
+  @media (max-width: 900px){
+    .layout{ flex-direction:column; padding:20px 16px 48px; }
+    .sidebar{ width:100%; position:static; max-height:none; }
+    .region-nav{ flex-direction:row; flex-wrap:wrap; }
+    .region-nav-item{ width:auto; }
+  }
+  h1{ margin:0; font-size:26px; font-weight:800; letter-spacing:-0.01em; }
+  .subtitle{ margin:6px 0 0; font-size:14px; color:var(--ink-muted); max-width:56ch; }
+  .topbar{ display:flex; flex-wrap:wrap; gap:14px; justify-content:space-between; align-items:flex-start; }
+  .topbar-status{ display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink-muted); padding:8px 12px; background:var(--surface); border:1px solid var(--border); border-radius:999px; white-space:nowrap; }
+  .save-dot{ width:8px; height:8px; border-radius:50%; background:var(--ink-muted); flex:none; }
+  .save-dot.synced{ background:var(--success); }
+  .save-dot.syncing, .save-dot.loading{ background:var(--warning); animation:pulse 1.1s ease-in-out infinite; }
+  .save-dot.error, .save-dot.setup-needed{ background:var(--danger); }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.35;} }
+  .refresh-btn{ border:none; background:none; color:var(--accent); font-weight:700; font-size:13px; cursor:pointer; padding:0; }
+
+  .setup-banner{ background:var(--warning-soft); border:1px solid var(--warning); border-radius:14px; padding:16px 18px; }
+  .setup-banner p{ margin:0 0 10px; font-size:14px; line-height:1.5; }
+  .setup-row{ display:flex; gap:8px; flex-wrap:wrap; }
+  .setup-row input{ flex:1 1 320px; height:38px; border-radius:10px; border:1px solid var(--border); padding:0 12px; font-size:14px; font-family:inherit; }
+
+  .stats-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(160px,1fr)); gap:12px; }
+  .stat-card{ background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px; box-shadow:0 1px 2px var(--shadow); display:flex; flex-direction:column; gap:6px; }
+  .stat-card.wide{ grid-column: span 2; }
+  .stat-label{ font-size:12px; font-weight:700; color:var(--ink-muted); text-transform:uppercase; letter-spacing:.04em; }
+  .stat-value{ font-size:26px; font-weight:800; line-height:1.1; }
+  .stat-value.small{ font-size:16px; font-weight:700; color:var(--ink-muted); }
+  .stat-unit{ font-size:13px; font-weight:500; color:var(--ink-muted); margin-left:4px; }
+  .progress{ height:6px; border-radius:999px; background:var(--surface-2); overflow:hidden; margin-top:2px; }
+  .progress-bar{ height:100%; background:var(--accent); border-radius:999px; }
+  .progress-bar.success{ background:var(--success); }
+  .chip-row{ display:flex; flex-wrap:wrap; gap:6px; }
+  .chip{ font-size:12.5px; font-weight:600; padding:4px 10px; border-radius:999px; background:var(--accent-soft); color:var(--accent-strong); }
+  .chip.muted{ background:var(--surface-2); color:var(--ink-muted); }
+
+  .toolbar{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+  .toolbar-search{ flex:1 1 220px; min-width:180px; }
+  .toolbar-filters{ display:flex; flex-wrap:wrap; gap:8px; }
+  #search-input, .toolbar-filters select{ height:38px; border-radius:10px; border:1px solid var(--border); background:var(--surface); color:var(--ink); padding:0 12px; font-size:14px; font-family:inherit; }
+  #search-input{ width:100%; }
+  #search-input:focus, .toolbar-filters select:focus, .cell-input:focus, .toggle:focus, .flag-select:focus, .btn:focus{ outline:2px solid var(--accent); outline-offset:1px; }
+  .btn{ height:38px; padding:0 16px; border-radius:10px; border:1px solid transparent; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer; }
+  .btn-primary{ background:var(--accent); color:#fff; }
+  .btn-primary:hover{ background:var(--accent-strong); }
+  .btn-ghost{ background:var(--surface); border-color:var(--border); color:var(--ink); }
+  .btn-ghost:hover{ background:var(--surface-2); }
+  .btn:disabled{ opacity:.5; cursor:not-allowed; }
+
+  .table-card{ background:var(--surface); border:1px solid var(--border); border-radius:16px; box-shadow:0 1px 2px var(--shadow); overflow:hidden; }
+  .table-wrap{ overflow:auto; max-height:68vh; }
+  table{ border-collapse:collapse; width:100%; min-width:1360px; font-size:13.5px; }
+  thead th{ position:sticky; top:0; z-index:4; background:var(--surface-2); color:var(--ink-muted); font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; text-align:left; padding:10px 8px; border-bottom:1px solid var(--border); white-space:nowrap; }
+  .sortable-th{ cursor:pointer; user-select:none; }
+  .sortable-th:hover{ color:var(--ink); }
+  .sort-indicator{ display:inline-block; margin-left:4px; font-size:10px; color:var(--accent); }
+  tbody td{ padding:6px 8px; border-bottom:1px solid var(--border); vertical-align:middle; }
+  tbody tr:hover td{ background:var(--surface-2); }
+  td.center, th.col-session, th.col-doc, th.col-complete, th.col-flag{ text-align:center; }
+  .col-date{ width:126px; } .col-folder{ width:78px; } .col-region{ width:112px; }
+  .col-company{ width:176px; } .col-session{ width:56px; } .col-doc{ width:76px; }
+  .col-complete{ width:76px; } .col-flag{ width:100px; } .col-remark{ width:200px; } .col-actions{ width:68px; }
+  .col-progress{ width:92px; }
+  .mini-gauge{ display:flex; flex-direction:column; align-items:center; gap:3px; }
+  .mini-gauge-track{ width:64px; height:6px; border-radius:999px; background:var(--surface-2); overflow:hidden; }
+  .mini-gauge-bar{ height:100%; background:var(--accent); border-radius:999px; }
+  .mini-gauge-label{ font-size:11px; font-weight:700; color:var(--ink-muted); }
+  .toggle-draggable{ cursor:pointer; }
+  body.no-select, body.no-select *{ user-select:none; -webkit-user-select:none; }
+  body.no-select .toggle-draggable{ cursor:crosshair; }
+  .sticky-col{ position:sticky; left:0; z-index:2; background:var(--surface); box-shadow:1px 0 0 var(--border); }
+  thead th.sticky-col{ z-index:5; background:var(--surface-2); }
+  tbody tr:hover td.sticky-col{ background:var(--surface-2); }
+  .cell-input{ width:100%; height:32px; border:1px solid transparent; background:transparent; color:var(--ink); border-radius:8px; padding:0 6px; font-family:inherit; font-size:13.5px; }
+  .cell-input:hover{ border-color:var(--border); }
+  .cell-input.cell-narrow{ text-align:center; }
+  .company-cell{ display:flex; align-items:center; gap:6px; }
+  .company-input{ font-weight:700; }
+  .example-badge{ flex:none; font-size:10.5px; font-weight:800; color:var(--warning); background:var(--warning-soft); padding:2px 6px; border-radius:6px; }
+  .toggle{ width:28px; height:28px; border-radius:8px; border:1.5px solid var(--border); background:var(--surface); color:var(--success); font-size:14px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; line-height:1; }
+  .toggle.on{ background:var(--success-soft); border-color:var(--success); }
+  .toggle.complete{ border-radius:999px; }
+  .toggle.complete.on{ background:var(--accent-soft); border-color:var(--accent); color:var(--accent-strong); }
+  tr.flag-caution td{ background-color: var(--warning-soft); }
+  tr.flag-alert td{ background-color: var(--alert-soft); }
+  tr.flag-issue td{ background-color: var(--danger-soft); }
+  tr.flag-caution td.sticky-col{ background-color: var(--warning-soft); }
+  tr.flag-alert td.sticky-col{ background-color: var(--alert-soft); }
+  tr.flag-issue td.sticky-col{ background-color: var(--danger-soft); }
+  tr.flag-caution td:first-child{ box-shadow: inset 3px 0 0 var(--warning); }
+  tr.flag-alert td:first-child{ box-shadow: inset 3px 0 0 var(--alert); }
+  tr.flag-issue td:first-child{ box-shadow: inset 3px 0 0 var(--danger); }
+  tr.flag-caution:hover td, tr.flag-alert:hover td, tr.flag-issue:hover td{ filter:brightness(0.97); }
+  .delete-btn{ border:1px solid var(--border); background:var(--surface); color:var(--ink-muted); border-radius:8px; height:28px; padding:0 8px; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap; }
+  .delete-btn.confirm{ background:var(--danger-soft); color:var(--danger); border-color:var(--danger); }
+  .empty-row td{ text-align:center; padding:36px 12px; color:var(--ink-muted); font-size:14px; }
+  .table-footer{ display:flex; justify-content:space-between; align-items:center; gap:12px; padding:12px 14px; border-top:1px solid var(--border); flex-wrap:wrap; }
+  #row-count-label{ font-size:13px; color:var(--ink-muted); }
+  @media (max-width: 640px){ h1{ font-size:22px; } .table-wrap{ max-height:58vh; } }
+
+  .login-screen{ position:fixed; inset:0; background:var(--bg); display:flex; align-items:center; justify-content:center; z-index:50; padding:20px; }
+  .login-screen[hidden]{ display:none; }
+  .login-card{ width:100%; max-width:340px; background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:28px 24px; box-shadow:0 4px 16px var(--shadow); display:flex; flex-direction:column; gap:10px; }
+  .login-card h2{ margin:0 0 2px; font-size:19px; font-weight:800; }
+  .login-sub{ margin:0 0 8px; font-size:13px; color:var(--ink-muted); }
+  .login-input{ height:42px; border-radius:10px; border:1px solid var(--border); background:var(--surface); color:var(--ink); padding:0 12px; font-size:14px; font-family:inherit; }
+  .login-input:focus{ outline:2px solid var(--accent); outline-offset:1px; }
+  .login-submit{ margin-top:4px; }
+  .login-error{ margin:2px 0 0; font-size:13px; color:var(--danger); }
+  .role-badge{ font-size:12px; font-weight:700; padding:4px 10px; border-radius:999px; background:var(--accent-soft); color:var(--accent-strong); white-space:nowrap; }
+  .readonly-text{ padding:0 6px; font-size:13.5px; color:var(--ink); min-height:32px; display:flex; align-items:center; }
+  .toggle-view{ width:28px; height:28px; border-radius:8px; border:1.5px solid var(--border); background:var(--surface-2); color:var(--ink-muted); font-size:14px; font-weight:800; display:inline-flex; align-items:center; justify-content:center; line-height:1; }
+  .toggle-view.on{ background:var(--success-soft); border-color:var(--success); color:var(--success); }
+  .toggle-view.complete{ border-radius:999px; }
+  .toggle-view.complete.on{ background:var(--accent-soft); border-color:var(--accent); color:var(--accent-strong); }
+  .flag-badge{ display:inline-flex; align-items:center; justify-content:center; height:30px; padding:0 10px; border-radius:999px; font-size:12.5px; font-weight:700; border:1.5px solid var(--border); }
+  .flag-badge.flag-none{ background:var(--surface-2); color:var(--ink-muted); border-color:var(--border); }
+  .flag-badge.flag-caution{ background:var(--warning-soft); color:var(--warning); border-color:var(--warning); }
+  .flag-badge.flag-alert{ background:var(--alert-soft); color:var(--alert); border-color:var(--alert); }
+  .flag-badge.flag-issue{ background:var(--danger-soft); color:var(--danger); border-color:var(--danger); }
+
+  .view-tabs{ display:flex; gap:6px; }
+  .view-tab{ height:36px; padding:0 16px; border-radius:10px; border:1px solid var(--border); background:var(--surface); color:var(--ink-muted); font-family:inherit; font-size:13.5px; font-weight:700; cursor:pointer; }
+  .view-tab:hover{ background:var(--surface-2); color:var(--ink); }
+  .view-tab.active{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  .upload-toggle{ width:28px; height:28px; border-radius:8px; border:1.5px solid var(--border); background:var(--surface-2); color:var(--ink-muted); font-size:14px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; line-height:1; }
+  .upload-toggle.available{ border-color:var(--accent); background:var(--accent-soft); color:var(--accent-strong); }
+  .upload-toggle.on{ background:var(--success-soft); border-color:var(--success); color:var(--success); }
+  .upload-toggle.disabled, .upload-toggle:disabled{ cursor:not-allowed; opacity:.4; background:var(--surface-2); }
+</style>
+</head>
+<body>
+<div class="login-screen" id="login-screen" hidden>
+  <form class="login-card" id="login-form">
+    <h2>멘토링 트래커 로그인</h2>
+    <p class="login-sub">전달받은 아이디와 비밀번호를 입력해 주세요.</p>
+    <input class="login-input" id="login-username" type="text" placeholder="아이디" autocomplete="username" autocapitalize="off" autocorrect="off">
+    <input class="login-input" id="login-password" type="password" placeholder="비밀번호" autocomplete="current-password">
+    <button class="btn btn-primary login-submit" id="login-submit" type="submit">로그인</button>
+    <p class="login-error" id="login-error" hidden></p>
+  </form>
+</div>
+<div class="layout">
+  <aside class="sidebar">
+    <div id="region-sidebar-section">
+      <div class="sidebar-title">권역</div>
+      <nav class="region-nav" id="region-nav" aria-label="권역별 바로가기"></nav>
+    </div>
+    <div class="sidebar-title" style="margin-top:14px;">회차</div>
+    <nav class="region-nav" id="round-nav" aria-label="회차별 바로가기"></nav>
+  </aside>
+  <div class="page" id="app">
+  <header class="topbar">
+    <div class="topbar-main">
+      <h1>멘토링 트래커</h1>
+      <p class="subtitle">멘티기업별 멘토링 회차와 서류 제출 현황을 한 곳에서 확인하고 직접 기록하는 보드예요. Google 시트에 저장되어 여러 사람·기기에서 같이 볼 수 있어요.</p>
+    </div>
+    <div class="topbar-status">
+      <span class="role-badge" id="role-badge" hidden></span>
+      <span class="save-dot" id="save-dot"></span>
+      <span id="save-text">불러오는 중…</span>
+      <button class="refresh-btn" id="refresh-btn" type="button">↻ 새로고침</button>
+      <button class="refresh-btn" id="logout-btn" type="button" hidden>로그아웃</button>
+    </div>
+  </header>
+
+  <section class="setup-banner" id="setup-banner" hidden>
+    <p><strong>연결 설정이 필요해요.</strong> Google Apps Script 웹 앱 URL을 아래에 붙여넣어 주세요. (배포 방법은 apps-script-code.gs 파일 상단 안내를 참고하세요.) 이 브라우저에만 저장되니, 팀 전체가 쓰려면 이 HTML 파일 상단의 <code>CONFIG.API_URL</code>에 직접 붙여넣고 다시 올리는 걸 추천해요.</p>
+    <div class="setup-row">
+      <input id="setup-url-input" type="text" placeholder="https://script.google.com/macros/s/xxxxx/exec">
+      <button id="setup-save-btn" class="btn btn-primary" type="button">저장하고 연결</button>
+    </div>
+  </section>
+
+  <section class="stats-grid" id="stats-grid" aria-label="요약 통계"></section>
+
+  <section class="toolbar">
+    <div class="toolbar-search">
+      <input id="search-input" type="text" placeholder="기업명으로 검색" autocomplete="off">
+    </div>
+    <div class="toolbar-filters">
+      <select id="filter-status" aria-label="완료 상태 필터">
+        <option value="all">전체 상태</option>
+        <option value="done">완료</option>
+        <option value="pending">미완료</option>
+      </select>
+      <select id="filter-flag" aria-label="이슈 필터">
+        <option value="all">전체 이슈</option>
+        <option value="none">정상</option>
+        <option value="caution">주의</option>
+        <option value="alert">경고</option>
+        <option value="issue">문제</option>
+      </select>
+    </div>
+    <button class="btn btn-ghost" id="drive-sync-btn" type="button">📁 드라이브에서 불러오기</button>
+    <button class="btn btn-ghost" id="export-excel-btn" type="button" hidden>📊 엑셀로 내보내기</button>
+    <button class="btn btn-ghost" id="clear-examples-btn" type="button" hidden>예시 데이터 지우기</button>
+  </section>
+
+  <p class="subtitle" id="edit-tip" style="margin:-8px 0 0;">팁: 1~6회차 · 계획서 · 보고서 · 완료는 "드라이브에서 불러오기"를 눌렀을 때 멘티기업 폴더 안 파일 유무를 확인해서 자동으로만 체크돼요 (직접 클릭해서 바꿀 수 없어요). 이슈 표시(주의/경고/문제)는 협약일자로부터 지난 일수(3일/5일/7일)를 기준으로 자동 계산되고, 비고는 관리자가 직접 입력할 수 있어요.</p>
+  <p class="subtitle" id="last-sync-label" style="margin:-8px 0 0;" hidden></p>
+
+  <div class="view-tabs" id="view-tabs">
+    <button type="button" class="view-tab active" data-view="collect">취합현황</button>
+    <button type="button" class="view-tab" data-view="upload">업로드현황</button>
+  </div>
+
+  <section class="table-card">
+    <div class="table-wrap">
+      <table>
+        <thead id="table-head"></thead>
+        <tbody id="rows-body"></tbody>
+      </table>
+    </div>
+    <div class="table-footer">
+      <span id="row-count-label"></span>
+      <button class="btn btn-primary" id="add-row-btn" type="button">+ 멘티기업 추가</button>
+    </div>
+  </section>
+  </div>
+</div>
+
+<datalist id="region-list"></datalist>
+
+<script>
+(function(){
+  // ── 1) 여기에 배포한 Google Apps Script 웹 앱 URL을 붙여넣으세요 ───────────
+  var CONFIG = {
+    API_URL: 'https://script.google.com/macros/s/AKfycbyzION97yz6ThNASZ8PRhjv8J8dGPuzxQH1Md0g6AQbkn6P72ff90IuaadBQcPLR0TpKg/exec',
+    POLL_INTERVAL_MS: 20000
+  };
+  // ─────────────────────────────────────────────────────────────────────
+
+  var REGION_PRESETS = ['수도권','강원권','제주권'];
+  var DEFAULT_ROUND = '1회차';
+  var ROUND_PRESETS = ['1회차'];
+  // 업로드현황에서 체크하는 8개 항목. 취합현황의 1~6회차/계획서/보고서와 1:1로 대응돼요.
+  var UPLOAD_FIELDS = ['upSession1','upSession2','upSession3','upSession4','upSession5','upSession6','upPlan','upReport'];
+  var viewMode = 'collect'; // 'collect'(취합현황) | 'upload'(업로드현황)
+
+  var STATE = { rows: [], lastSync: null };
+  var filters = { q:'', region:'all', status:'all', flag:'all', round:'all' };
+  var apiUrl = null;
+  var pendingSaves = {};
+  var inFlight = 0;
+  var pendingDeleteId = null;
+  var pendingDeleteTimer = null;
+
+  // ── 로그인/권한 상태 ─────────────────────────────────────────────
+  // 계정별 아이디·비밀번호·권한은 apps-script-code.gs의 USERS 목록에서 관리해요.
+  // 여기서는 로그인 후 서버가 알려준 role('admin'|'viewer')과 region만 들고 있어요.
+  var AUTH_STORAGE_KEY = 'mt_auth_v1';
+  var AUTH = { u:null, p:null, role:null, region:null };
+  var pollingStarted = false;
+
+  var appRoot, statsGrid, rowsBody, tableHeadEl, rowCountLabel, searchInput, regionNavEl, roundNavEl, filterStatus, filterFlag,
+      addRowBtn, clearExamplesBtn, regionListEl, saveDot, saveText, refreshBtn, setupBanner, setupUrlInput, setupSaveBtn,
+      driveSyncBtn, regionSidebarSection, loginScreen, loginForm, loginUsername, loginPassword, loginError, loginSubmit,
+      roleBadge, logoutBtn, lastSyncLabel, exportExcelBtn;
+
+  function isAdmin(){ return AUTH.role === 'admin'; }
+
+  function roleLabel(){
+    if(AUTH.role === 'admin') return '관리자 계정';
+    if(AUTH.region && AUTH.region !== 'all') return AUTH.region + ' 열람 계정';
+    return '전체 열람 계정';
+  }
+
+  function loadStoredAuth(){
+    try{
+      var raw = localStorage.getItem(AUTH_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    }catch(e){ return null; }
+  }
+  function saveAuth(auth){
+    try{ localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(auth)); }catch(e){}
+  }
+  function clearAuth(){
+    try{ localStorage.removeItem(AUTH_STORAGE_KEY); }catch(e){}
+  }
+
+  function uid(){ return 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+  function escapeHtml(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+    });
+  }
+
+  function blankUploadFields(){
+    var obj = {};
+    UPLOAD_FIELDS.forEach(function(f){ obj[f] = false; });
+    return obj;
+  }
+
+  function exampleRows(){
+    // 이슈 표시(flag)는 이제 협약일자 기준으로 자동 계산되니, 예시 데이터도 값을 직접
+    // 박아두지 않고 normalizeRow를 그대로 통과시켜서 실제 화면과 똑같은 방식으로 계산돼요.
+    return [
+      { id:'ex1', isExample:true, date:'2026-09-14', folderNc:'1', region:'수도권', company:'(주)예시기업 A',
+        sessions:[true,true,true,true,true,true], plan:true, report:true, remark:'', round:'1회차',
+        upSession1:true, upSession2:true, upSession3:true, upSession4:true, upPlan:true },
+      { id:'ex2', isExample:true, date:'2026-09-15', folderNc:'2', region:'강원권', company:'(주)예시기업 B',
+        sessions:[true,true,true,false,false,false], plan:true, report:false, remark:'4차 일정 조율 중', round:'1회차',
+        upSession1:true },
+      { id:'ex3', isExample:true, date:'2026-09-16', folderNc:'3', region:'제주권', company:'(주)예시기업 C',
+        sessions:[true,false,false,false,false,false], plan:false, report:false, remark:'담당 멘토 변경 필요', round:'1회차' }
+    ].map(function(r){ return normalizeRow(Object.assign(blankUploadFields(), r)); });
+  }
+
+  function toDateInputValue(v){
+    // 백엔드나 캐시에서 어떤 형태로 오든 <input type="date">가 요구하는
+    // "yyyy-MM-dd" 형태로 항상 맞춰줍니다 (예: ISO 타임스탬프가 섞여 와도 안전하게 처리).
+    if(!v) return '';
+    var s = String(v);
+    var m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? (m[1] + '-' + m[2] + '-' + m[3]) : '';
+  }
+
+  // 오늘 날짜 기준으로 협약일자(date)로부터 며칠이 지났는지 계산해요. 날짜가 없거나
+  // 형식이 이상하면 null을 돌려줘서 "계산 불가" 상태를 구분해요.
+  function daysSince(dateStr){
+    if(!dateStr) return null;
+    var start = new Date(dateStr + 'T00:00:00');
+    if(isNaN(start.getTime())) return null;
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return Math.floor((today - start) / 86400000);
+  }
+
+  // 이슈 표시는 이제 관리자가 직접 고르지 않고, 협약일자로부터 지난 일수를 기준으로
+  // 자동으로 매겨요: 3일↑ 주의, 5일↑ 경고, 7일↑ 문제. 이미 완료된 기업이거나 협약일자가
+  // 없어서 계산할 수 없는 기업은 정상으로 둬요 (협약일자 없음은 비고란에 따로 안내해요).
+  var FLAG_DAY_THRESHOLDS = [
+    { days: 7, flag: 'issue' },
+    { days: 5, flag: 'alert' },
+    { days: 3, flag: 'caution' }
+  ];
+  function computeAutoFlag(dateStr, complete){
+    if(complete) return 'none';
+    var days = daysSince(dateStr);
+    if(days === null) return 'none';
+    for(var i = 0; i < FLAG_DAY_THRESHOLDS.length; i++){
+      if(days >= FLAG_DAY_THRESHOLDS[i].days) return FLAG_DAY_THRESHOLDS[i].flag;
+    }
+    return 'none';
+  }
+
+  function normalizeRow(r){
+    var sessions = Array.isArray(r.sessions) ? [0,1,2,3,4,5].map(function(i){ return !!r.sessions[i]; }) : [false,false,false,false,false,false];
+    var plan = !!r.plan, report = !!r.report;
+    var dateVal = toDateInputValue(r.date);
+    // 완료는 저장된 값을 그대로 믿지 않고, 1~6회차·계획서·보고서가 전부 체크됐는지로
+    // 매번 다시 계산해요. 이 값들은 이제 "드라이브에서 불러오기"로만 채워지니
+    // 항상 정확하게 맞아떨어져요.
+    var complete = sessions.every(Boolean) && plan && report;
+    var normalized = {
+      id: r.id, isExample: !!r.isExample,
+      date: dateVal, folderNc: r.folderNc || '', region: r.region || '', company: r.company || '',
+      sessions: sessions, plan: plan, report: report,
+      complete: complete,
+      flag: computeAutoFlag(dateVal, complete), remark: r.remark || '', round: r.round || DEFAULT_ROUND
+    };
+    UPLOAD_FIELDS.forEach(function(f){ normalized[f] = !!r[f]; });
+    return normalized;
+  }
+
+  function computeStats(rows){
+    var total = rows.length;
+    var completeCount = rows.filter(function(r){ return r.complete; }).length;
+    var sessionTotal = total * 6;
+    var sessionChecked = rows.reduce(function(sum,r){ return sum + r.sessions.filter(Boolean).length; }, 0);
+    var planCount = rows.filter(function(r){ return r.plan; }).length;
+    var reportCount = rows.filter(function(r){ return r.report; }).length;
+    var issueCount = rows.filter(function(r){ return r.flag === 'issue'; }).length;
+    var alertCount = rows.filter(function(r){ return r.flag === 'alert'; }).length;
+    var cautionCount = rows.filter(function(r){ return r.flag === 'caution'; }).length;
+    var byRegion = {};
+    rows.forEach(function(r){ var k = r.region || '미지정'; byRegion[k] = (byRegion[k] || 0) + 1; });
+    return {
+      total: total, completeCount: completeCount,
+      completeRate: total ? Math.round(completeCount/total*100) : 0,
+      sessionChecked: sessionChecked, sessionTotal: sessionTotal,
+      sessionRate: sessionTotal ? Math.round(sessionChecked/sessionTotal*100) : 0,
+      planCount: planCount, reportCount: reportCount,
+      issueCount: issueCount, alertCount: alertCount, cautionCount: cautionCount, byRegion: byRegion
+    };
+  }
+
+  var sortState = { field: null, dir: 'asc' };
+
+  function folderNcSortValue(v){
+    var n = parseInt(v, 10);
+    return isNaN(n) ? null : n;
+  }
+
+  function sortRows(rows){
+    if(!sortState.field) return rows;
+    var field = sortState.field;
+    var dir = sortState.dir === 'desc' ? -1 : 1;
+    var withIndex = rows.map(function(r, i){ return { r: r, i: i }; });
+    withIndex.sort(function(a, b){
+      var av = folderNcSortValue(a.r[field]);
+      var bv = folderNcSortValue(b.r[field]);
+      // 숫자로 못 읽는 값(빈 칸 등)은 항상 뒤로 보내요.
+      if(av === null && bv === null) return a.i - b.i;
+      if(av === null) return 1;
+      if(bv === null) return -1;
+      if(av !== bv) return (av - bv) * dir;
+      return a.i - b.i;
+    });
+    return withIndex.map(function(x){ return x.r; });
+  }
+
+  function updateSortIndicator(){
+    var indicator = document.getElementById('sort-indicator');
+    if(!indicator) return;
+    if(sortState.field !== 'folderNc'){ indicator.textContent = ''; return; }
+    indicator.textContent = sortState.dir === 'desc' ? '▼' : '▲';
+  }
+
+  // 폴더NC 정렬 헤더는 탭을 바꿀 때마다 새로 그려지므로, 그릴 때마다 클릭 이벤트도 다시 걸어줘요.
+  function bindSortHeader(){
+    var th = document.getElementById('th-folder-nc');
+    if(!th) return;
+    th.addEventListener('click', function(){
+      if(sortState.field === 'folderNc'){
+        sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
+      } else {
+        sortState.field = 'folderNc';
+        sortState.dir = 'asc';
+      }
+      updateSortIndicator();
+      renderTable();
+    });
+  }
+
+  var FOLDER_SORT_TH = '<th class="col-folder sortable-th" id="th-folder-nc" data-sort-field="folderNc">폴더NC<span class="sort-indicator" id="sort-indicator"></span></th>';
+
+  function renderTableHeader(){
+    var headRow;
+    if(viewMode === 'upload'){
+      headRow =
+        '<th class="col-date">협약일자</th>' + FOLDER_SORT_TH +
+        '<th class="col-region">권역</th>' +
+        '<th class="col-company sticky-col">멘티기업</th>' +
+        '<th class="col-session">1회차</th>' +
+        '<th class="col-session">2회차</th>' +
+        '<th class="col-session">3회차</th>' +
+        '<th class="col-session">4회차</th>' +
+        '<th class="col-session">5회차</th>' +
+        '<th class="col-session">6회차</th>' +
+        '<th class="col-doc">계획서</th>' +
+        '<th class="col-doc">보고서</th>' +
+        '<th class="col-complete">완료</th>';
+    } else {
+      headRow =
+        '<th class="col-date">협약일자</th>' + FOLDER_SORT_TH +
+        '<th class="col-region">권역</th>' +
+        '<th class="col-company sticky-col">멘티기업</th>' +
+        '<th class="col-session">1회차</th>' +
+        '<th class="col-session">2회차</th>' +
+        '<th class="col-session">3회차</th>' +
+        '<th class="col-session">4회차</th>' +
+        '<th class="col-session">5회차</th>' +
+        '<th class="col-session">6회차</th>' +
+        '<th class="col-doc">계획서</th>' +
+        '<th class="col-doc">보고서</th>' +
+        '<th class="col-progress">수행도</th>' +
+        '<th class="col-complete">완료</th>' +
+        '<th class="col-flag">이슈</th>' +
+        '<th class="col-remark">비고</th>' +
+        '<th class="col-actions"></th>';
+    }
+    tableHeadEl.innerHTML = '<tr>' + headRow + '</tr>';
+    bindSortHeader();
+    updateSortIndicator();
+  }
+
+  function matchesCommon(r){
+    if(filters.q && r.company.toLowerCase().indexOf(filters.q) === -1) return false;
+    if(filters.status === 'done' && !r.complete) return false;
+    if(filters.status === 'pending' && r.complete) return false;
+    if(filters.flag !== 'all' && r.flag !== filters.flag) return false;
+    return true;
+  }
+
+  function matchesRegion(r){
+    return filters.region === 'all' || (r.region || '미지정') === filters.region;
+  }
+
+  function matchesRound(r){
+    return filters.round === 'all' || (r.round || DEFAULT_ROUND) === filters.round;
+  }
+
+  function matchesFilters(r){
+    return matchesCommon(r) && matchesRegion(r) && matchesRound(r);
+  }
+
+  function findRow(id){
+    for(var i=0;i<STATE.rows.length;i++){ if(STATE.rows[i].id === id) return STATE.rows[i]; }
+    return null;
+  }
+
+  function touchRow(row){ if(row.isExample) row.isExample = false; }
+
+  // 1~6회차·계획서·보고서·완료는 "드라이브에서 불러오기"로만 채워지는 값이라
+  // 관리자를 포함해 누구도 직접 클릭해서 바꿀 수 없어요. 상태만 보여주는 정적 표시예요.
+  function autoCellHTML(checked, isComplete){
+    return '<span class="toggle-view' + (isComplete ? ' complete' : '') + (checked ? ' on' : '') + '">' + (checked ? '✓' : '') + '</span>';
+  }
+
+  var FLAG_LABELS = { none:'정상', caution:'주의', alert:'경고', issue:'문제' };
+
+  // 이슈 배지는 이제 관리자든 협력사든 직접 바꿀 수 없는 자동 계산 결과라서, 항상 읽기 전용
+  // 배지로만 보여줘요. 마우스를 올리면 왜 이 상태인지(며칠 지났는지) 알 수 있게 안내를 달아요.
+  function flagTooltip(r){
+    if(r.complete) return '완료된 기업이라 지연 계산을 하지 않아요.';
+    var days = daysSince(r.date);
+    if(days === null) return '협약일자가 설정되지 않아서 지연 계산을 할 수 없어요.';
+    return '협약일자로부터 ' + days + '일 경과';
+  }
+  function flagCellHTML(r){
+    var flag = r.flag || 'none';
+    var label = FLAG_LABELS[flag] || '정상';
+    return '<span class="flag-badge flag-' + flag + '" title="' + escapeHtml(flagTooltip(r)) + '">' + escapeHtml(label) + '</span>';
+  }
+
+  function textCellHTML(opts){
+    if(isAdmin()){
+      return '<input class="cell-input' + (opts.extraClass ? ' ' + opts.extraClass : '') + '" type="' + opts.type + '"' +
+        (opts.list ? ' list="' + opts.list + '"' : '') +
+        (opts.inputmode ? ' inputmode="' + opts.inputmode + '"' : '') +
+        ' data-field="' + opts.field + '" placeholder="' + escapeHtml(opts.placeholder || '') + '" value="' + escapeHtml(opts.value || '') + '">';
+    }
+    return '<span class="readonly-text">' + escapeHtml(opts.value || '') + '</span>';
+  }
+
+  function rowProgress(row){
+    // 수행도는 계획서·보고서는 빼고, 1~6회차 체크 여부만으로 계산해요.
+    var checked = row.sessions.filter(Boolean).length;
+    var total = 6;
+    return { checked: checked, total: total, pct: Math.round(checked/total*100) };
+  }
+
+  function gaugeHTML(row){
+    var p = rowProgress(row);
+    return '<div class="mini-gauge" title="' + p.checked + ' / ' + p.total + '">' +
+      '<div class="mini-gauge-track"><div class="mini-gauge-bar" style="width:' + p.pct + '%"></div></div>' +
+      '<span class="mini-gauge-label">' + p.pct + '%</span>' +
+    '</div>';
+  }
+
+  function renderRowHTML(r){
+    var admin = isAdmin();
+    return '' +
+    '<tr data-id="' + r.id + '" class="flag-' + r.flag + '">' +
+      '<td>' + textCellHTML({ type:'date', field:'date', value:r.date }) + '</td>' +
+      '<td>' + textCellHTML({ type:'text', field:'folderNc', value:r.folderNc, extraClass:'cell-narrow', inputmode:'numeric' }) + '</td>' +
+      '<td>' + textCellHTML({ type:'text', field:'region', value:r.region, placeholder:'권역', list:'region-list' }) + '</td>' +
+      '<td class="sticky-col company-cell">' +
+        textCellHTML({ type:'text', field:'company', value:r.company, placeholder:'기업명 입력', extraClass:'company-input' }) +
+        (r.isExample ? '<span class="example-badge">예시</span>' : '') +
+      '</td>' +
+      '<td class="center">' + autoCellHTML(r.sessions[0]) + '</td>' +
+      '<td class="center">' + autoCellHTML(r.sessions[1]) + '</td>' +
+      '<td class="center">' + autoCellHTML(r.sessions[2]) + '</td>' +
+      '<td class="center">' + autoCellHTML(r.sessions[3]) + '</td>' +
+      '<td class="center">' + autoCellHTML(r.sessions[4]) + '</td>' +
+      '<td class="center">' + autoCellHTML(r.sessions[5]) + '</td>' +
+      '<td class="center">' + autoCellHTML(r.plan) + '</td>' +
+      '<td class="center">' + autoCellHTML(r.report) + '</td>' +
+      '<td class="center">' + gaugeHTML(r) + '</td>' +
+      '<td class="center">' + autoCellHTML(r.complete, true) + '</td>' +
+      '<td class="center">' + flagCellHTML(r) + '</td>' +
+      '<td>' + textCellHTML({ type:'text', field:'remark', value:r.remark, placeholder: r.date ? '메모' : '협약일자 설정X' }) + '</td>' +
+      '<td class="center">' + (admin ? '<button type="button" class="delete-btn" data-action="delete">삭제</button>' : '') + '</td>' +
+    '</tr>';
+  }
+
+  // 업로드현황 체크칸: 취합현황에 해당 항목 자료가 이미 올라와 있으면(available) 파란 테두리로
+  // 눈에 띄게 표시해요. 관리자·협력사 계정 모두 클릭해서 체크/해제할 수 있어요.
+  // 단, 취합현황에 자료가 없는(available=false) 항목은 아직 체크된 적이 없다면 클릭을 막아요
+  // (이미 체크되어 있던 항목은, 취합현황이 나중에 되돌아가도 직접 해제는 할 수 있게 열어둬요).
+  function uploadToggleHTML(id, field, checked, available){
+    var clickable = available || checked;
+    var cls = 'upload-toggle' + (available ? ' available' : '') + (checked ? ' on' : '') + (clickable ? '' : ' disabled');
+    return '<button type="button" class="' + cls + '" data-upload-field="' + field + '" data-id="' + escapeHtml(id) + '"' +
+      (clickable ? '' : ' disabled title="취합현황에 자료가 없어서 아직 체크할 수 없어요"') +
+      ' aria-pressed="' + !!checked + '">' + (checked ? '✓' : '') + '</button>';
+  }
+
+  // 업로드현황 8개 칸(1~6회차·계획서·보고서) 공통 정의예요. 화면 렌더링과 엑셀 내보내기가
+  // 똑같은 기준(취합현황에 자료가 있는지=available, 업로드 체크가 됐는지=checked)을 쓰도록
+  // 한 곳에 모아뒀어요.
+  function uploadItemsForRow(r){
+    return [
+      { field:'upSession1', label:'1회차', available:r.sessions[0], checked:r.upSession1 },
+      { field:'upSession2', label:'2회차', available:r.sessions[1], checked:r.upSession2 },
+      { field:'upSession3', label:'3회차', available:r.sessions[2], checked:r.upSession3 },
+      { field:'upSession4', label:'4회차', available:r.sessions[3], checked:r.upSession4 },
+      { field:'upSession5', label:'5회차', available:r.sessions[4], checked:r.upSession5 },
+      { field:'upSession6', label:'6회차', available:r.sessions[5], checked:r.upSession6 },
+      { field:'upPlan', label:'계획서', available:r.plan, checked:r.upPlan },
+      { field:'upReport', label:'보고서', available:r.report, checked:r.upReport }
+    ];
+  }
+
+  function renderUploadRowHTML(r){
+    var items = uploadItemsForRow(r);
+    var uploadComplete = items.every(function(it){ return it.checked; });
+    return '' +
+    '<tr data-id="' + r.id + '">' +
+      '<td><span class="readonly-text">' + escapeHtml(r.date || '') + '</span></td>' +
+      '<td><span class="readonly-text">' + escapeHtml(r.folderNc || '') + '</span></td>' +
+      '<td><span class="readonly-text">' + escapeHtml(r.region || '') + '</span></td>' +
+      '<td class="sticky-col company-cell"><span class="readonly-text">' + escapeHtml(r.company || '') + '</span></td>' +
+      items.map(function(it){ return '<td class="center">' + uploadToggleHTML(r.id, it.field, it.checked, it.available) + '</td>'; }).join('') +
+      '<td class="center">' + autoCellHTML(uploadComplete, true) + '</td>' +
+    '</tr>';
+  }
+
+  // ── 엑셀(.xlsx) 내보내기 ────────────────────────────────────────────────
+  // 지금 화면에 보이는 필터·정렬 상태 그대로, 취합현황/업로드현황 탭에 맞는 컬럼 구성으로
+  // 서식(제목·헤더 색, 이슈별 행 색, 완료 표시)까지 갖춘 엑셀 파일을 만들어서 바로 내려받아요.
+  var FLAG_FILL = {
+    caution: 'FFF7E9D2', alert: 'FFF8E3CC', issue: 'FFF6DEDA'
+  };
+  var FLAG_FONT = {
+    caution: 'FF8A631F', alert: 'FF8A4415', issue: 'FF8A3327'
+  };
+
+  function excelFilenamePart(s){
+    return String(s || '').replace(/[\\/:*?"<>|]/g, '').trim();
+  }
+
+  function buildExportTitle(sheetLabel){
+    var regionLabel = (filters.region === 'all' || !filters.region) ? '전체 권역' : filters.region;
+    var roundLabel = (filters.round === 'all' || !filters.round) ? '전체 회차' : filters.round;
+    var todayLabel = new Date().toISOString().slice(0, 10);
+    return '멘토링 프로그램 ' + sheetLabel + ' — ' + regionLabel + ' · ' + roundLabel + ' (기준일: ' + todayLabel + ')';
+  }
+
+  function styleHeaderRow(row){
+    row.eachCell(function(cell){
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2B6777' } };
+      cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      cell.border = { bottom: { style: 'thin', color: { argb: 'FF1D4A56' } } };
+    });
+    row.height = 26;
+  }
+
+  // row.worksheet 같은 내부 참조에 기대지 않고, sheet를 직접 받아서 병합해요
+  // (ExcelJS 내부 구현이 바뀌어도 안전하게 동작하도록).
+  function styleTitleRow(sheet, span){
+    var row = sheet.getRow(1);
+    row.getCell(1).font = { bold: true, size: 13, color: { argb: 'FF1D4A56' } };
+    row.getCell(1).alignment = { vertical: 'middle', horizontal: 'left' };
+    row.height = 24;
+    if(span > 1) sheet.mergeCells(1, 1, 1, span);
+    return row;
+  }
+
+  function buildCollectSheet(workbook, rows){
+    var sheet = workbook.addWorksheet('취합현황', { views: [{ state: 'frozen', ySplit: 2 }] });
+    sheet.columns = [
+      { header: '협약일자', key: 'date', width: 13 },
+      { header: '폴더NC', key: 'folderNc', width: 9 },
+      { header: '권역', key: 'region', width: 10 },
+      { header: '멘티기업', key: 'company', width: 26 },
+      { header: '1회차', key: 's1', width: 7 },
+      { header: '2회차', key: 's2', width: 7 },
+      { header: '3회차', key: 's3', width: 7 },
+      { header: '4회차', key: 's4', width: 7 },
+      { header: '5회차', key: 's5', width: 7 },
+      { header: '6회차', key: 's6', width: 7 },
+      { header: '계획서', key: 'plan', width: 9 },
+      { header: '보고서', key: 'report', width: 9 },
+      { header: '수행도', key: 'progress', width: 9 },
+      { header: '완료', key: 'complete', width: 8 },
+      { header: '이슈', key: 'flag', width: 9 },
+      { header: '비고', key: 'remark', width: 28 }
+    ];
+    var columnDefs = sheet.columns;
+    sheet.spliceRows(1, 0, []);
+    styleTitleRow(sheet, columnDefs.length).getCell(1).value = buildExportTitle('취합현황');
+    styleHeaderRow(sheet.getRow(2));
+    var leftAlignKeys = { company: true, remark: true };
+
+    rows.forEach(function(r){
+      var progress = rowProgress(r);
+      var row = sheet.addRow({
+        date: r.date || '', folderNc: r.folderNc || '', region: r.region || '', company: r.company || '',
+        s1: r.sessions[0] ? '✓' : '', s2: r.sessions[1] ? '✓' : '', s3: r.sessions[2] ? '✓' : '',
+        s4: r.sessions[3] ? '✓' : '', s5: r.sessions[4] ? '✓' : '', s6: r.sessions[5] ? '✓' : '',
+        plan: r.plan ? '✓' : '', report: r.report ? '✓' : '',
+        progress: progress.pct, complete: r.complete ? '✓' : '',
+        flag: FLAG_LABELS[r.flag] || '정상', remark: r.remark || ''
+      });
+      row.getCell('progress').numFmt = '0"%"';
+      row.eachCell(function(cell, colNumber){
+        var key = columnDefs[colNumber - 1] && columnDefs[colNumber - 1].key;
+        cell.alignment = { vertical: 'middle', horizontal: leftAlignKeys[key] ? 'left' : 'center' };
+      });
+      ['s1','s2','s3','s4','s5','s6','plan','report','complete'].forEach(function(key){
+        if(row.getCell(key).value === '✓') row.getCell(key).font = { bold: true, color: { argb: 'FF2F8F5B' } };
+      });
+      if(FLAG_FILL[r.flag]){
+        row.eachCell(function(cell){ cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: FLAG_FILL[r.flag] } }; });
+      }
+      if(FLAG_FONT[r.flag]) row.getCell('flag').font = { bold: true, color: { argb: FLAG_FONT[r.flag] } };
+      if(r.complete) row.getCell('complete').font = { bold: true, color: { argb: 'FF1D4A56' } };
+    });
+
+    sheet.autoFilter = { from: { row: 2, column: 1 }, to: { row: 2, column: sheet.columns.length } };
+    return sheet;
+  }
+
+  function buildUploadSheet(workbook, rows){
+    var sheet = workbook.addWorksheet('업로드현황', { views: [{ state: 'frozen', ySplit: 2 }] });
+    sheet.columns = [
+      { header: '협약일자', key: 'date', width: 13 },
+      { header: '폴더NC', key: 'folderNc', width: 9 },
+      { header: '권역', key: 'region', width: 10 },
+      { header: '멘티기업', key: 'company', width: 26 },
+      { header: '1회차', key: 'u1', width: 7 },
+      { header: '2회차', key: 'u2', width: 7 },
+      { header: '3회차', key: 'u3', width: 7 },
+      { header: '4회차', key: 'u4', width: 7 },
+      { header: '5회차', key: 'u5', width: 7 },
+      { header: '6회차', key: 'u6', width: 7 },
+      { header: '계획서', key: 'uPlan', width: 9 },
+      { header: '보고서', key: 'uReport', width: 9 },
+      { header: '완료', key: 'complete', width: 8 }
+    ];
+    var columnDefs = sheet.columns;
+    sheet.spliceRows(1, 0, []);
+    styleTitleRow(sheet, columnDefs.length).getCell(1).value = buildExportTitle('업로드현황');
+    styleHeaderRow(sheet.getRow(2));
+    var leftAlignKeys = { company: true };
+
+    var itemKeys = ['u1','u2','u3','u4','u5','u6','uPlan','uReport'];
+    rows.forEach(function(r){
+      var items = uploadItemsForRow(r);
+      var uploadComplete = items.every(function(it){ return it.checked; });
+      var values = { date: r.date || '', folderNc: r.folderNc || '', region: r.region || '', company: r.company || '', complete: uploadComplete ? '✓' : '' };
+      items.forEach(function(it, i){ values[itemKeys[i]] = it.checked ? '✓' : (it.available ? '' : '—'); });
+      var row = sheet.addRow(values);
+      row.eachCell(function(cell, colNumber){
+        var key = columnDefs[colNumber - 1] && columnDefs[colNumber - 1].key;
+        cell.alignment = { vertical: 'middle', horizontal: leftAlignKeys[key] ? 'left' : 'center' };
+      });
+      items.forEach(function(it, i){
+        var cell = row.getCell(itemKeys[i]);
+        if(it.checked) cell.font = { bold: true, color: { argb: 'FF2F8F5B' } };
+        else if(!it.available){ cell.font = { color: { argb: 'FFB0A99A' } }; }
+        else { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCEAEA' } }; }
+      });
+      if(uploadComplete) row.getCell('complete').font = { bold: true, color: { argb: 'FF1D4A56' } };
+    });
+
+    sheet.autoFilter = { from: { row: 2, column: 1 }, to: { row: 2, column: sheet.columns.length } };
+    return sheet;
+  }
+
+  // ExcelJS는 꽤 무거운 라이브러리라서, 페이지를 열 때마다 미리 받아두지 않고 "엑셀로
+  // 내보내기" 버튼을 실제로 눌렀을 때만 그때그때 불러와요 (그래야 대시보드 첫 로딩이
+  // 느려지지 않아요). 한 번 불러온 뒤에는 다시 내려받지 않도록 캐시해둬요.
+  var exceljsLoadPromise = null;
+  function ensureExcelJSLoaded(){
+    if(typeof ExcelJS !== 'undefined') return Promise.resolve();
+    if(exceljsLoadPromise) return exceljsLoadPromise;
+    exceljsLoadPromise = new Promise(function(resolve, reject){
+      var script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
+      script.onload = function(){ resolve(); };
+      script.onerror = function(){
+        exceljsLoadPromise = null;
+        reject(new Error('엑셀 내보내기 기능을 불러오지 못했어요. 인터넷 연결을 확인한 뒤 다시 시도해주세요.'));
+      };
+      document.head.appendChild(script);
+    });
+    return exceljsLoadPromise;
+  }
+
+  function exportToExcel(){
+    return ensureExcelJSLoaded().then(function(){
+      var rows = sortRows(STATE.rows.filter(matchesFilters));
+      var workbook = new ExcelJS.Workbook();
+      workbook.creator = '멘토링 트래커';
+      workbook.created = new Date();
+
+      if(viewMode === 'upload') buildUploadSheet(workbook, rows);
+      else buildCollectSheet(workbook, rows);
+
+      var sheetLabel = viewMode === 'upload' ? '업로드현황' : '취합현황';
+      var regionPart = excelFilenamePart((filters.region === 'all' || !filters.region) ? '전체권역' : filters.region);
+      var roundPart = excelFilenamePart((filters.round === 'all' || !filters.round) ? '전체회차' : filters.round);
+      var datePart = new Date().toISOString().slice(0,10).replace(/-/g, '');
+      var filename = sheetLabel + '_' + regionPart + '_' + roundPart + '_' + datePart + '.xlsx';
+
+      return workbook.xlsx.writeBuffer().then(function(buffer){
+        var blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+      });
+    }).catch(function(err){
+      console.error('[엑셀 내보내기] 실패:', err);
+      alert(err && err.message ? err.message : '엑셀 파일을 만드는 중 문제가 생겼어요.');
+    });
+  }
+
+  function renderStats(){
+    var s = computeStats(STATE.rows);
+    var regionEntries = Object.keys(s.byRegion).map(function(k){ return [k, s.byRegion[k]]; });
+    var regionChips = regionEntries.length
+      ? regionEntries.map(function(e){ return '<span class="chip">' + escapeHtml(e[0]) + ' ' + e[1] + '</span>'; }).join('')
+      : '<span class="chip muted">데이터 없음</span>';
+    statsGrid.innerHTML =
+      '<div class="stat-card"><div class="stat-label">전체 멘티기업</div><div class="stat-value">' + s.total + '<span class="stat-unit">개사</span></div></div>' +
+      '<div class="stat-card"><div class="stat-label">완료</div><div class="stat-value">' + s.completeCount + '<span class="stat-unit">/ ' + s.total + '</span></div>' +
+        '<div class="progress"><div class="progress-bar" style="width:' + s.completeRate + '%"></div></div></div>' +
+      '<div class="stat-card"><div class="stat-label">회차 진행률</div><div class="stat-value">' + s.sessionRate + '<span class="stat-unit">%</span></div>' +
+        '<div class="progress"><div class="progress-bar success" style="width:' + s.sessionRate + '%"></div></div></div>' +
+      '<div class="stat-card"><div class="stat-label">서류 제출</div><div class="stat-value">' + s.planCount + '<span class="stat-unit">계획서</span></div>' +
+        '<div class="stat-value small">' + s.reportCount + '<span class="stat-unit">보고서</span></div></div>' +
+      '<div class="stat-card"><div class="stat-label">이슈 표시</div><div class="stat-value">' + s.issueCount + '<span class="stat-unit">문제</span></div>' +
+        '<div class="stat-value small">' + s.alertCount + '<span class="stat-unit">경고</span> · ' + s.cautionCount + '<span class="stat-unit">주의</span></div></div>' +
+      '<div class="stat-card wide"><div class="stat-label">권역별 현황</div><div class="chip-row">' + regionChips + '</div></div>';
+  }
+
+  function buildNavHTML(items, activeKey, dataAttr){
+    return items.map(function(it){
+      return '<button type="button" class="region-nav-item' + (it.key === activeKey ? ' active' : '') + '" data-' + dataAttr + '="' + escapeHtml(it.key) + '">' +
+        '<span class="region-nav-name">' + escapeHtml(it.label) + '</span>' +
+        '<span class="region-nav-count">' + it.count + '</span></button>';
+    }).join('');
+  }
+
+  function renderRegionNav(){
+    var used = [];
+    STATE.rows.forEach(function(r){ var k = r.region || '미지정'; if(used.indexOf(k) === -1) used.push(k); });
+    var all = REGION_PRESETS.slice();
+    used.forEach(function(r){ if(r !== '미지정' && all.indexOf(r) === -1) all.push(r); });
+    if(used.indexOf('미지정') !== -1) all.push('미지정');
+
+    // 자동완성용 datalist에는 "미지정"은 굳이 안 넣어도 돼요 (직접 입력할 값이 아니라서).
+    regionListEl.innerHTML = all.filter(function(r){ return r !== '미지정'; })
+      .map(function(r){ return '<option value="' + escapeHtml(r) + '">'; }).join('');
+
+    var current = filters.region;
+    if(current !== 'all' && all.indexOf(current) === -1){ filters.region = 'all'; current = 'all'; }
+
+    // 회차 필터·검색·상태·이슈 조건은 유지한 채, "권역"만 무시하고 센 개수예요
+    // (다른 사이드바를 고를 때 이 목록의 개수도 같이 갱신되도록).
+    var baseRows = STATE.rows.filter(function(r){ return matchesCommon(r) && matchesRound(r); });
+    var counts = {};
+    baseRows.forEach(function(r){ var k = r.region || '미지정'; counts[k] = (counts[k] || 0) + 1; });
+
+    var items = [{ key:'all', label:'전체', count: baseRows.length }]
+      .concat(all.map(function(r){ return { key:r, label:r, count: counts[r] || 0 }; }));
+    regionNavEl.innerHTML = buildNavHTML(items, current, 'region');
+  }
+
+  function renderRoundNav(){
+    var used = [];
+    STATE.rows.forEach(function(r){ var k = r.round || DEFAULT_ROUND; if(used.indexOf(k) === -1) used.push(k); });
+    var all = ROUND_PRESETS.slice();
+    used.forEach(function(r){ if(all.indexOf(r) === -1) all.push(r); });
+    all.sort(); // "1회차","2회차"... 순서대로 (문자열 정렬이라 10회차 이상이면 따로 손봐야 할 수 있어요)
+
+    var current = filters.round;
+    if(current !== 'all' && all.indexOf(current) === -1){ filters.round = 'all'; current = 'all'; }
+
+    var baseRows = STATE.rows.filter(function(r){ return matchesCommon(r) && matchesRegion(r); });
+    var counts = {};
+    baseRows.forEach(function(r){ var k = r.round || DEFAULT_ROUND; counts[k] = (counts[k] || 0) + 1; });
+
+    var items = [{ key:'all', label:'전체', count: baseRows.length }]
+      .concat(all.map(function(r){ return { key:r, label:r, count: counts[r] || 0 }; }));
+    roundNavEl.innerHTML = buildNavHTML(items, current, 'round');
+  }
+
+  function renderTable(){
+    var filtered = sortRows(STATE.rows.filter(matchesFilters));
+    var colCount = viewMode === 'upload' ? 13 : 17;
+    if(filtered.length === 0){
+      rowsBody.innerHTML = '<tr class="empty-row"><td colspan="' + colCount + '">' +
+        (STATE.rows.length === 0
+          ? '아직 등록된 멘티기업이 없어요. 아래 “+ 멘티기업 추가” 버튼으로 시작해 보세요.'
+          : '조건에 맞는 멘티기업이 없어요.') +
+        '</td></tr>';
+      return;
+    }
+    rowsBody.innerHTML = filtered.map(viewMode === 'upload' ? renderUploadRowHTML : renderRowHTML).join('');
+  }
+
+  function renderRowCountLabel(){
+    var total = STATE.rows.length;
+    var shown = STATE.rows.filter(matchesFilters).length;
+    rowCountLabel.textContent = (shown === total) ? ('전체 ' + total + '개사') : (shown + '개 표시 중 · 전체 ' + total + '개사');
+  }
+
+  function renderAll(){
+    renderStats();
+    renderRegionNav();
+    renderRoundNav();
+    renderTable();
+    renderRowCountLabel();
+    clearExamplesBtn.hidden = !isAdmin() || viewMode !== 'collect' || !STATE.rows.some(function(r){ return r.isExample; });
+  }
+
+  // 로그인한 계정 권한 + 현재 탭(취합현황/업로드현황)에 따라 편집용 버튼/문구를 보이거나 숨겨요.
+  // (실제 수정 차단은 apps-script-code.gs 서버 쪽에서도 한 번 더 확인해요 — 화면에서
+  // 숨기는 것만으로는 API를 직접 호출하는 걸 막을 수 없기 때문이에요.)
+  function applyRoleUI(){
+    var admin = isAdmin();
+    var scopedRegion = !!(AUTH.region && AUTH.region !== 'all');
+    var showCollectionControls = admin && viewMode === 'collect';
+    addRowBtn.hidden = !showCollectionControls;
+    driveSyncBtn.hidden = !showCollectionControls;
+    if(exportExcelBtn) exportExcelBtn.hidden = false;
+    var tip = document.getElementById('edit-tip');
+    if(tip){
+      if(viewMode === 'upload'){
+        tip.hidden = false;
+        tip.textContent = '파란 테두리 칸은 취합현황에 이미 자료가 올라온 회차·서류예요. 외부 사이트에 업로드를 마쳤으면 체크해주세요 — 관리자와 협력사 계정 모두 체크할 수 있어요. 색깔 없는 칸(취합현황에 자료가 아직 없는 항목)은 체크할 수 없어요.';
+      } else {
+        tip.hidden = !admin;
+        tip.textContent = '팁: 1~6회차 · 계획서 · 보고서 · 완료는 "드라이브에서 불러오기"를 눌렀을 때 멘티기업 폴더 안 파일 유무를 확인해서 자동으로만 체크돼요 (직접 클릭해서 바꿀 수 없어요). 이슈 표시(주의/경고/문제)는 협약일자로부터 지난 일수(3일/5일/7일)를 기준으로 자동 계산되고, 비고는 관리자가 직접 입력할 수 있어요.';
+      }
+    }
+    if(regionSidebarSection) regionSidebarSection.hidden = scopedRegion;
+    roleBadge.hidden = false;
+    roleBadge.textContent = roleLabel();
+    logoutBtn.hidden = false;
+    renderLastSyncLabel(showCollectionControls);
+  }
+
+  // 매일 새벽 자동 동기화(또는 수동으로 누른 "드라이브에서 불러오기")가 마지막으로 언제,
+  // 어떤 결과로 실행됐는지 관리자에게만 보여줘요. apps-script-code.gs의 setupDailySyncTrigger로
+  // 자동 동기화를 걸어두면, 관리자가 버튼을 안 눌러도 이 문구가 매일 새벽 갱신돼요.
+  function formatSyncTime(iso){
+    var d = new Date(iso);
+    if(isNaN(d.getTime())) return '';
+    var hh = String(d.getHours()).padStart(2, '0');
+    var mi = String(d.getMinutes()).padStart(2, '0');
+    return (d.getMonth() + 1) + '월 ' + d.getDate() + '일 ' + hh + ':' + mi;
+  }
+  function renderLastSyncLabel(show){
+    if(!lastSyncLabel) return;
+    if(!show || !STATE.lastSync){
+      lastSyncLabel.hidden = true;
+      return;
+    }
+    lastSyncLabel.hidden = false;
+    lastSyncLabel.textContent = '마지막 드라이브 동기화: ' + formatSyncTime(STATE.lastSync.at) +
+      (STATE.lastSync.summary ? (' · ' + STATE.lastSync.summary) : '');
+  }
+
+  function setViewMode(mode){
+    if(viewMode === mode) return;
+    viewMode = mode;
+    document.querySelectorAll('.view-tab').forEach(function(t){
+      t.classList.toggle('active', t.getAttribute('data-view') === mode);
+    });
+    applyRoleUI();
+    renderTableHeader();
+    renderTable();
+  }
+
+  function nowLabel(){
+    var d = new Date();
+    return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  }
+
+  function setSyncStatus(status){
+    saveDot.className = 'save-dot ' + status;
+    var map = {
+      loading: '불러오는 중…',
+      synced: '동기화됨 · ' + nowLabel(),
+      syncing: '저장 중…',
+      error: '연결에 실패했어요 (URL 또는 배포 설정을 확인해 주세요)',
+      'setup-needed': '연결 설정이 필요해요'
+    };
+    saveText.textContent = map[status] || '';
+  }
+
+  function isPlaceholder(u){ return !u || u.indexOf('PASTE_YOUR') !== -1; }
+
+  function resolveApiUrl(){
+    try{
+      var override = localStorage.getItem('mt_api_url');
+      if(override) return override;
+    }catch(e){}
+    return CONFIG.API_URL;
+  }
+
+  function showLoginScreen(message){
+    loginScreen.hidden = false;
+    if(message){ loginError.textContent = message; loginError.hidden = false; }
+    else { loginError.hidden = true; }
+    loginSubmit.disabled = false;
+    loginSubmit.textContent = '로그인';
+    setTimeout(function(){ loginUsername.focus(); }, 0);
+  }
+
+  function hideLoginScreen(){
+    loginScreen.hidden = true;
+  }
+
+  function startPolling(){
+    if(pollingStarted) return;
+    pollingStarted = true;
+    setInterval(function(){ pollOnce(false); }, CONFIG.POLL_INTERVAL_MS);
+  }
+
+  function fetchRows(){
+    // 캐시된(구버전) 응답을 절대 재사용하지 않도록 매번 새 쿼리스트링을 붙이고
+    // cache:'no-store'를 지정합니다. Apps Script 웹 앱 GET 응답이 브라우저나
+    // 중간 캐시에 저장되어, 배포를 새로 해도 예전 값(예전 날짜 형식, 예전 오류)이
+    // 계속 보이는 문제를 막기 위한 처리예요.
+    // 아이디/비밀번호는 매 요청에 같이 실어보내서, 서버가 그때그때 권한(관리자/열람,
+    // 담당 권역)을 확인해서 그에 맞는 데이터만 돌려주도록 해요.
+    var bustUrl = apiUrl + (apiUrl.indexOf('?') === -1 ? '?' : '&') + '_=' + Date.now() +
+      '&u=' + encodeURIComponent(AUTH.u || '') + '&p=' + encodeURIComponent(AUTH.p || '');
+    return fetch(bustUrl, { method:'GET', cache:'no-store' }).then(function(res){
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    }).then(function(data){
+      if(data && data.error === 'auth'){
+        var err = new Error(data.message || '아이디 또는 비밀번호가 올바르지 않아요.');
+        err.isAuthError = true;
+        throw err;
+      }
+      if(data && data.role){ AUTH.role = data.role; AUTH.region = data.region; }
+      STATE.lastSync = (data && data.lastSync) || null;
+      return Array.isArray(data.rows) ? data.rows.map(normalizeRow) : [];
+    });
+  }
+
+  function attemptLogin(username, password){
+    AUTH.u = username; AUTH.p = password;
+    loginSubmit.disabled = true;
+    loginSubmit.textContent = '확인 중…';
+    loginError.hidden = true;
+    setSyncStatus('loading');
+    fetchRows().then(function(rows){
+      saveAuth({ u: username, p: password });
+      STATE.rows = rows.length ? rows : (isAdmin() ? exampleRows() : []);
+      hideLoginScreen();
+      setSyncStatus('synced');
+      applyRoleUI();
+      renderAll();
+      startPolling();
+    }).catch(function(err){
+      console.error(err);
+      AUTH.u = null; AUTH.p = null;
+      loginSubmit.disabled = false;
+      loginSubmit.textContent = '로그인';
+      loginError.textContent = (err && err.isAuthError) ? err.message : '연결에 실패했어요. 잠시 후 다시 시도해 주세요.';
+      loginError.hidden = false;
+    });
+  }
+
+  function saveRow(id){
+    if(!isAdmin()) return;
+    var row = findRow(id);
+    if(!row) return;
+    inFlight++;
+    setSyncStatus('syncing');
+    fetch(apiUrl, {
+      method:'POST',
+      cache:'no-store',
+      headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action:'upsert', row: row, u: AUTH.u, p: AUTH.p })
+    }).catch(function(err){ console.error(err); })
+      .finally(function(){
+        inFlight--;
+        setSyncStatus(inFlight > 0 ? 'syncing' : 'synced');
+      });
+  }
+
+  function scheduleSaveRow(id){
+    clearTimeout(pendingSaves[id]);
+    pendingSaves[id] = setTimeout(function(){ saveRow(id); }, 700);
+  }
+
+  function deleteRowRemote(id){
+    if(!isAdmin()) return;
+    inFlight++;
+    setSyncStatus('syncing');
+    fetch(apiUrl, {
+      method:'POST',
+      cache:'no-store',
+      headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action:'delete', id: id, u: AUTH.u, p: AUTH.p })
+    }).catch(function(err){ console.error(err); })
+      .finally(function(){
+        inFlight--;
+        setSyncStatus(inFlight > 0 ? 'syncing' : 'synced');
+      });
+  }
+
+  // 업로드현황 체크 한 칸을 서버에 반영해요. 관리자·협력사 계정 모두 호출할 수 있고,
+  // 담당 권역이 정해진 계정은 서버가 그 권역 데이터인지 한 번 더 확인해요.
+  function saveUploadField(id, field, value){
+    inFlight++;
+    setSyncStatus('syncing');
+    fetch(apiUrl, {
+      method:'POST',
+      cache:'no-store',
+      headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action:'setUpload', id:id, field:field, value:value, u:AUTH.u, p:AUTH.p })
+    }).then(function(res){
+        if(!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(function(data){
+        if(data && data.error === 'auth'){
+          clearAuth();
+          AUTH.u = null; AUTH.p = null;
+          showLoginScreen('로그인 정보가 만료됐어요. 다시 로그인해 주세요.');
+        }
+      })
+      .catch(function(err){ console.error(err); })
+      .finally(function(){
+        inFlight--;
+        setSyncStatus(inFlight > 0 ? 'syncing' : 'synced');
+      });
+  }
+
+  function pollOnce(force){
+    if(!force){
+      if(document.activeElement && rowsBody.contains(document.activeElement)) return Promise.resolve();
+      if(inFlight > 0 || Object.keys(pendingSaves).length) return Promise.resolve();
+    }
+    return fetchRows().then(function(rows){
+      if(rows.length === 0 && STATE.rows.length && STATE.rows.every(function(r){ return r.isExample; })) return;
+      STATE.rows = rows.length ? rows : STATE.rows;
+      setSyncStatus('synced');
+      renderAll();
+      renderLastSyncLabel(isAdmin() && viewMode === 'collect');
+    }).catch(function(err){
+      console.error(err);
+      if(err && err.isAuthError){
+        clearAuth();
+        AUTH.u = null; AUTH.p = null;
+        showLoginScreen('로그인 정보가 만료됐어요. 다시 로그인해 주세요.');
+        return;
+      }
+      setSyncStatus('error');
+    });
+  }
+
+  function onTableClick(e){
+    // 업로드현황 체크는 관리자·협력사 계정 모두 가능해서, "관리자만" 가드보다 먼저 처리해요.
+    var uploadBtn = e.target.closest('.upload-toggle');
+    if(uploadBtn){
+      // 취합현황에 자료가 없어서 막아둔 칸은 (이론상 disabled 속성 덕에 여기까지 오지 않지만) 한 번 더 막아요.
+      if(uploadBtn.disabled || uploadBtn.classList.contains('disabled')) return;
+      var uid2 = uploadBtn.getAttribute('data-id');
+      var field = uploadBtn.getAttribute('data-upload-field');
+      var newVal = !uploadBtn.classList.contains('on');
+      uploadBtn.classList.toggle('on', newVal);
+      uploadBtn.textContent = newVal ? '✓' : '';
+      uploadBtn.setAttribute('aria-pressed', newVal);
+      var uploadRow = findRow(uid2);
+      if(uploadRow) uploadRow[field] = newVal;
+      saveUploadField(uid2, field, newVal);
+      return;
+    }
+    if(!isAdmin()) return;
+    var delBtn = e.target.closest('[data-action="delete"]');
+    if(delBtn){
+      var trd = e.target.closest('tr');
+      var id = trd.getAttribute('data-id');
+      if(pendingDeleteId === id){
+        clearTimeout(pendingDeleteTimer);
+        var wasExample = STATE.rows.some(function(r){ return r.id === id && r.isExample; });
+        STATE.rows = STATE.rows.filter(function(r){ return r.id !== id; });
+        pendingDeleteId = null;
+        renderAll();
+        if(!wasExample) deleteRowRemote(id);
+      } else {
+        pendingDeleteId = id;
+        delBtn.textContent = '정말 삭제?';
+        delBtn.classList.add('confirm');
+        clearTimeout(pendingDeleteTimer);
+        pendingDeleteTimer = setTimeout(function(){
+          pendingDeleteId = null;
+          delBtn.textContent = '삭제';
+          delBtn.classList.remove('confirm');
+        }, 3500);
+      }
+    }
+  }
+
+  function onTableInput(e){
+    if(!isAdmin()) return;
+    var field = e.target.getAttribute('data-field');
+    if(!field) return;
+    if(field === 'company' || field === 'folderNc' || field === 'remark' || field === 'region'){
+      var tr = e.target.closest('tr');
+      var row = findRow(tr.getAttribute('data-id'));
+      if(!row) return;
+      touchRow(row);
+      row[field] = e.target.value;
+      scheduleSaveRow(row.id);
+    }
+  }
+
+  function onTableChange(e){
+    if(!isAdmin()) return;
+    var field = e.target.getAttribute('data-field');
+    if(!field) return;
+    var tr = e.target.closest('tr');
+    var row = findRow(tr.getAttribute('data-id'));
+    if(!row) return;
+    touchRow(row);
+    if(field === 'date'){
+      row.date = e.target.value;
+      // 협약일자가 바뀌면 이슈 표시(주의/경고/문제)도 그 즉시 다시 계산해서 보여줘요.
+      row.flag = computeAutoFlag(row.date, row.complete);
+      tr.className = 'flag-' + row.flag;
+      var flagBadge = tr.querySelector('.flag-badge');
+      if(flagBadge){
+        flagBadge.className = 'flag-badge flag-' + row.flag;
+        flagBadge.title = flagTooltip(row);
+        flagBadge.textContent = FLAG_LABELS[row.flag] || '정상';
+      }
+      var remarkInput = tr.querySelector('[data-field="remark"]');
+      if(remarkInput) remarkInput.placeholder = row.date ? '메모' : '협약일자 설정X';
+      renderStats();
+    }
+    scheduleSaveRow(row.id);
+  }
+
+  function onTableBlur(e){
+    var field = e.target.getAttribute && e.target.getAttribute('data-field');
+    if(field === 'region'){
+      renderRegionNav();
+      renderRoundNav();
+      renderStats();
+      renderRowCountLabel();
+    }
+  }
+
+  function bindEvents(){
+    rowsBody.addEventListener('click', onTableClick);
+    rowsBody.addEventListener('input', onTableInput);
+    rowsBody.addEventListener('change', onTableChange);
+    rowsBody.addEventListener('blur', onTableBlur, true);
+
+    searchInput.addEventListener('input', function(){
+      filters.q = searchInput.value.trim().toLowerCase();
+      renderRegionNav(); renderRoundNav(); renderTable(); renderRowCountLabel();
+    });
+    regionNavEl.addEventListener('click', function(e){
+      var btn = e.target.closest('.region-nav-item');
+      if(!btn) return;
+      filters.region = btn.getAttribute('data-region');
+      renderRegionNav(); renderRoundNav(); renderTable(); renderRowCountLabel();
+    });
+    roundNavEl.addEventListener('click', function(e){
+      var btn = e.target.closest('.region-nav-item');
+      if(!btn) return;
+      filters.round = btn.getAttribute('data-round');
+      renderRegionNav(); renderRoundNav(); renderTable(); renderRowCountLabel();
+    });
+    filterStatus.addEventListener('change', function(){
+      filters.status = filterStatus.value;
+      renderRegionNav(); renderRoundNav(); renderTable(); renderRowCountLabel();
+    });
+    filterFlag.addEventListener('change', function(){
+      filters.flag = filterFlag.value;
+      renderRegionNav(); renderRoundNav(); renderTable(); renderRowCountLabel();
+    });
+
+    addRowBtn.addEventListener('click', function(){
+      if(!isAdmin()) return;
+      var today = new Date().toISOString().slice(0,10);
+      var lastRegion = STATE.rows.length ? STATE.rows[STATE.rows.length-1].region : '';
+      var newRow = Object.assign(blankUploadFields(), {
+        id: uid(), isExample:false, date: today,
+        folderNc: String(STATE.rows.length + 1),
+        region: lastRegion || '', company: '',
+        sessions:[false,false,false,false,false,false],
+        plan:false, report:false, complete:false, flag:'none', remark:'',
+        round: filters.round !== 'all' ? filters.round : DEFAULT_ROUND
+      });
+      STATE.rows.push(newRow);
+      renderAll();
+      scheduleSaveRow(newRow.id);
+      requestAnimationFrame(function(){
+        var trs = rowsBody.querySelectorAll('tr');
+        var last = trs[trs.length - 1];
+        if(last){ var inp = last.querySelector('.company-input'); if(inp) inp.focus(); }
+      });
+    });
+
+    clearExamplesBtn.addEventListener('click', function(){
+      if(!isAdmin()) return;
+      STATE.rows = STATE.rows.filter(function(r){ return !r.isExample; });
+      renderAll();
+    });
+
+    refreshBtn.addEventListener('click', function(){ pollOnce(true); });
+
+    var viewTabsEl = document.getElementById('view-tabs');
+    if(viewTabsEl){
+      viewTabsEl.addEventListener('click', function(e){
+        var btn = e.target.closest('.view-tab');
+        if(!btn) return;
+        setViewMode(btn.getAttribute('data-view'));
+      });
+    }
+
+    setupSaveBtn.addEventListener('click', function(){
+      var val = setupUrlInput.value.trim();
+      if(!val) return;
+      try{ localStorage.setItem('mt_api_url', val); }catch(e){}
+      location.reload();
+    });
+
+    loginForm.addEventListener('submit', function(e){
+      e.preventDefault();
+      var u = loginUsername.value.trim();
+      var p = loginPassword.value;
+      if(!u || !p) return;
+      attemptLogin(u, p);
+    });
+
+    logoutBtn.addEventListener('click', function(){
+      clearAuth();
+      location.reload();
+    });
+
+    driveSyncBtn.addEventListener('click', function(){
+      if(!isAdmin()) return;
+      driveSyncBtn.disabled = true;
+      var originalLabel = driveSyncBtn.textContent;
+      driveSyncBtn.textContent = '가져오는 중…';
+      saveDot.className = 'save-dot syncing';
+      saveText.textContent = '드라이브 확인 중…';
+      console.log('[드라이브 연동] 요청 시작:', apiUrl);
+      fetch(apiUrl, {
+        method: 'POST',
+        cache: 'no-store',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'syncFromDrive', u: AUTH.u, p: AUTH.p })
+      }).then(function(res){
+          if(!res.ok) throw new Error('HTTP ' + res.status);
+          return res.json();
+        })
+        .then(function(data){
+          console.log('[드라이브 연동] 응답:', data);
+          if(data && data.error === 'auth'){
+            clearAuth();
+            AUTH.u = null; AUTH.p = null;
+            showLoginScreen('로그인 정보가 만료됐어요. 다시 로그인해 주세요.');
+            return;
+          }
+          var r = data && data.result;
+          var msg;
+          if(!r){
+            msg = '드라이브 연동 응답을 확인할 수 없어요.';
+          } else if(r.error){
+            msg = '드라이브 연동 오류: ' + r.error;
+          } else {
+            msg = '폴더 ' + r.foldersScanned + '개 확인 · 기존 ' + r.matched + '개 업데이트 · 신규 ' + r.created + '개 추가' +
+              (r.skipped ? ' · 이미 완료 ' + r.skipped + '개 건너뜀' : '');
+            if(r.debug) msg += ' — ' + r.debug;
+          }
+          // pollOnce가 화면을 새로고침한 "뒤"에 결과 메시지를 표시해야
+          // "동기화됨" 상태 문구에 곧바로 덮여쓰이지 않아요.
+          return pollOnce(true).then(function(){ saveText.textContent = msg; });
+        })
+        .catch(function(err){
+          console.error('[드라이브 연동] 실패:', err);
+          saveDot.className = 'save-dot error';
+          saveText.textContent = '드라이브 연동에 실패했어요 (' + err.message + '). 콘솔(F12)을 확인해 주세요.';
+        })
+        .finally(function(){
+          driveSyncBtn.disabled = false;
+          driveSyncBtn.textContent = originalLabel;
+        });
+    });
+
+    exportExcelBtn.addEventListener('click', function(){
+      exportExcelBtn.disabled = true;
+      var originalLabel = exportExcelBtn.textContent;
+      exportExcelBtn.textContent = '만드는 중…';
+      exportToExcel().finally(function(){
+        exportExcelBtn.disabled = false;
+        exportExcelBtn.textContent = originalLabel;
+      });
+    });
+  }
+
+  function init(){
+    appRoot = document.getElementById('app');
+    statsGrid = document.getElementById('stats-grid');
+    rowsBody = document.getElementById('rows-body');
+    tableHeadEl = document.getElementById('table-head');
+    rowCountLabel = document.getElementById('row-count-label');
+    searchInput = document.getElementById('search-input');
+    regionNavEl = document.getElementById('region-nav');
+    roundNavEl = document.getElementById('round-nav');
+    filterStatus = document.getElementById('filter-status');
+    filterFlag = document.getElementById('filter-flag');
+    addRowBtn = document.getElementById('add-row-btn');
+    clearExamplesBtn = document.getElementById('clear-examples-btn');
+    regionListEl = document.getElementById('region-list');
+    saveDot = document.getElementById('save-dot');
+    saveText = document.getElementById('save-text');
+    refreshBtn = document.getElementById('refresh-btn');
+    setupBanner = document.getElementById('setup-banner');
+    setupUrlInput = document.getElementById('setup-url-input');
+    setupSaveBtn = document.getElementById('setup-save-btn');
+    driveSyncBtn = document.getElementById('drive-sync-btn');
+    lastSyncLabel = document.getElementById('last-sync-label');
+    exportExcelBtn = document.getElementById('export-excel-btn');
+    regionSidebarSection = document.getElementById('region-sidebar-section');
+    loginScreen = document.getElementById('login-screen');
+    loginForm = document.getElementById('login-form');
+    loginUsername = document.getElementById('login-username');
+    loginPassword = document.getElementById('login-password');
+    loginError = document.getElementById('login-error');
+    loginSubmit = document.getElementById('login-submit');
+    roleBadge = document.getElementById('role-badge');
+    logoutBtn = document.getElementById('logout-btn');
+
+    apiUrl = resolveApiUrl();
+    renderTableHeader();
+    bindEvents();
+
+    if(isPlaceholder(apiUrl)){
+      // 아직 API_URL을 설정하지 않은 로컬 미리보기 상태예요. 로그인 없이 관리자
+      // 화면 예시를 그대로 보여줘요 (실제 배포에서는 이 배너가 뜨지 않아요).
+      setupBanner.hidden = false;
+      setSyncStatus('setup-needed');
+      AUTH.role = 'admin'; AUTH.region = 'all';
+      STATE.rows = exampleRows();
+      applyRoleUI();
+      renderAll();
+      return;
+    }
+
+    var stored = loadStoredAuth();
+    if(stored && stored.u && stored.p){
+      AUTH.u = stored.u; AUTH.p = stored.p;
+      setSyncStatus('loading');
+      fetchRows().then(function(rows){
+        STATE.rows = rows.length ? rows : (isAdmin() ? exampleRows() : []);
+        hideLoginScreen();
+        setSyncStatus('synced');
+        applyRoleUI();
+        renderAll();
+        startPolling();
+      }).catch(function(err){
+        console.error(err);
+        clearAuth();
+        AUTH.u = null; AUTH.p = null;
+        showLoginScreen(err && err.isAuthError ? '로그인 정보가 만료됐어요. 다시 로그인해 주세요.' : null);
+      });
+    } else {
+      showLoginScreen();
+    }
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+</body>
+</html>
