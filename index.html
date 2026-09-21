@@ -57,6 +57,24 @@
   .setup-row{ display:flex; gap:8px; flex-wrap:wrap; }
   .setup-row input{ flex:1 1 320px; height:38px; border-radius:10px; border:1px solid var(--border); padding:0 12px; font-size:14px; font-family:inherit; }
 
+  .settings-card{
+    background:linear-gradient(180deg, rgba(255,255,255,0.96), rgba(247,245,241,0.96));
+    border:1px solid var(--border);
+    border-radius:16px;
+    padding:18px 18px 16px;
+    box-shadow:0 1px 2px var(--shadow);
+  }
+  .settings-card + .settings-card{ margin-top:12px; }
+  .settings-header{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; }
+  .settings-title{ margin:0; font-size:15px; font-weight:800; color:var(--ink); }
+  .settings-badge{ display:inline-flex; align-items:center; justify-content:center; height:24px; padding:0 10px; border-radius:999px; background:var(--accent-soft); color:var(--accent-strong); border:1px solid rgba(43,103,119,0.2); font-size:11px; font-weight:700; letter-spacing:.03em; }
+  .settings-card p{ margin:0; font-size:14px; color:var(--ink-muted); line-height:1.55; }
+  .settings-actions{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:12px; }
+  .settings-actions input{ height:38px; border-radius:10px; border:1px solid var(--border); background:var(--surface); color:var(--ink); padding:0 12px; font-size:14px; font-family:inherit; }
+  .settings-actions input[type="number"]{ width:90px; }
+  .settings-actions input[type="date"]{ width:180px; }
+  .settings-actions .btn{ height:38px; }
+
   .stats-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(160px,1fr)); gap:12px; }
   .stat-card{ background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px; box-shadow:0 1px 2px var(--shadow); display:flex; flex-direction:column; gap:6px; }
   .stat-card.wide{ grid-column: span 2; }
@@ -186,8 +204,9 @@
       <div class="sidebar-title">권역</div>
       <nav class="region-nav" id="region-nav" aria-label="권역별 바로가기"></nav>
     </div>
-    <div class="sidebar-title" style="margin-top:14px;">회차</div>
+    <div class="sidebar-title" style="margin-top:14px;">Step</div>
     <nav class="region-nav" id="round-nav" aria-label="회차별 바로가기"></nav>
+    <div id="step-message" class="subtitle" style="display:none; margin-top:8px; font-weight:700; color:var(--accent-strong);"></div>
   </aside>
   <div class="page" id="app">
   <header class="topbar">
@@ -235,15 +254,33 @@
     <button class="btn btn-ghost" id="drive-sync-btn" type="button">📁 드라이브에서 불러오기</button>
     <button class="btn btn-ghost" id="export-excel-btn" type="button" hidden>📊 엑셀로 내보내기</button>
     <button class="btn btn-ghost" id="session-settings-btn" type="button" hidden>⚙️ 회차 설정</button>
+    <button class="btn btn-ghost" id="step-open-date-btn" type="button" hidden>📅 Step 설정</button>
     <button class="btn btn-ghost" id="clear-examples-btn" type="button" hidden>예시 데이터 지우기</button>
   </section>
 
-  <section class="setup-banner" id="session-count-banner" hidden>
-    <p><strong>회차 세션 수 설정</strong> 한 멘티기업이 진행하는 멘토링 세션이 총 몇 회차인지 정해요. 지금은 <strong id="session-count-current"></strong>회차예요. 늘리면 표에 새 회차 칸이 생기고, 줄이면 화면에서만 숨겨질 뿐 예전에 체크했던 값은 시트에 그대로 남아있어서 나중에 다시 늘리면 되살아나요. (1~<span id="session-count-max"></span> 사이로 설정할 수 있어요.)</p>
-    <div class="setup-row">
-      <input id="session-count-input" type="number" min="1" step="1" style="max-width:90px;">
+  <section class="settings-card" id="session-count-banner" hidden>
+    <div class="settings-header">
+      <h3 class="settings-title">회차 세션 수 설정</h3>
+      <span class="settings-badge">관리자</span>
+    </div>
+    <p>한 멘티기업이 진행하는 멘토링 세션이 총 몇 회차인지 정해요. 지금은 <strong id="session-count-current"></strong>회차예요. 늘리면 표에 새 회차 칸이 생기고, 줄이면 화면에서만 숨겨질 뿐 예전에 체크했던 값은 시트에 그대로 남아있어서 나중에 다시 늘리면 되살아나요. (1~<span id="session-count-max"></span> 사이로 설정할 수 있어요.)</p>
+    <div class="settings-actions">
+      <input id="session-count-input" type="number" min="1" step="1">
       <button id="session-count-save-btn" class="btn btn-primary" type="button">저장</button>
       <button id="session-count-cancel-btn" class="btn btn-ghost" type="button">취소</button>
+    </div>
+  </section>
+
+  <section class="settings-card" id="step-open-date-banner" hidden>
+    <div class="settings-header">
+      <h3 class="settings-title">Step 2 오픈 예정일 설정</h3>
+      <span class="settings-badge">관리자</span>
+    </div>
+    <p>관리자만 수정할 수 있어요. 이 날짜가 Step 2 선택 시 표시되는 안내 문구에 반영됩니다.</p>
+    <div class="settings-actions">
+      <input id="step-open-date-input" type="date">
+      <button id="step-open-date-save-btn" class="btn btn-primary" type="button">저장</button>
+      <button id="step-open-date-cancel-btn" class="btn btn-ghost" type="button">취소</button>
     </div>
   </section>
 
@@ -297,7 +334,28 @@
 
   var REGION_PRESETS = ['수도권','강원권','제주권'];
   var DEFAULT_ROUND = '1회차';
-  var ROUND_PRESETS = ['1회차'];
+  var ROUND_PRESETS = ['1회차', '2회차'];
+  var STEP2_OPEN_DATE_KEY = 'step2_open_date';
+  function getStep2OpenDate(){
+    try {
+      return localStorage.getItem(STEP2_OPEN_DATE_KEY) || '2026-10-15';
+    } catch (e) {
+      return '2026-10-15';
+    }
+  }
+  function setStep2OpenDate(dateText){
+    try { localStorage.setItem(STEP2_OPEN_DATE_KEY, String(dateText || '')); } catch (e) {}
+  }
+  function formatOpenDateText(dateText){
+    if(!dateText) return '추후';
+    var match = /^\d{4}-\d{2}-\d{2}$/.exec(String(dateText));
+    if(!match) return String(dateText);
+    var parts = String(dateText).split('-');
+    return parts[0] + '년 ' + Number(parts[1]) + '월 ' + Number(parts[2]) + '일';
+  }
+  function getStep2OpenMessage(){
+    return 'Step 2는 ' + formatOpenDateText(getStep2OpenDate()) + '에 오픈예정입니다.';
+  }
   // 회차(세션) 수는 이제 고정 6이 아니라 서버(apps-script-code.gs)가 알려주는 값을 따라가요.
   // MAX_SESSIONS는 서버 쪽 상한과 반드시 같은 값으로 맞춰야 해요 (설정 화면의 입력 상한으로도 써요).
   var MAX_SESSIONS = 12;
@@ -316,7 +374,7 @@
   var viewMode = 'collect'; // 'collect'(취합현황) | 'upload'(업로드현황)
 
   var STATE = { rows: [], lastSync: null, lastDigest: null, sessionCount: 6 };
-  var filters = { q:'', region:'all', status:'all', flag:'all', round:'all' };
+  var filters = { q:'', region:'all', status:'all', flag:'all', round: DEFAULT_ROUND };
   var apiUrl = null;
   var pendingSaves = {};
   var inFlight = 0;
@@ -330,15 +388,12 @@
   var AUTH = { u:null, p:null, role:null, region:null };
   var pollingStarted = false;
 
-  var appRoot, statsGrid, rowsBody, tableHeadEl, rowCountLabel, searchInput, regionNavEl, roundNavEl, filterStatus, filterFlag,
+  var appRoot, statsGrid, rowsBody, tableHeadEl, rowCountLabel, searchInput, regionNavEl, roundNavEl, stepMessageEl, filterStatus, filterFlag,
       addRowBtn, clearExamplesBtn, regionListEl, saveDot, saveText, refreshBtn, setupBanner, setupUrlInput, setupSaveBtn,
       driveSyncBtn, regionSidebarSection, loginScreen, loginForm, loginUsername, loginPassword, loginError, loginSubmit,
-      roleBadge, logoutBtn, lastSyncLabel, lastDigestLabel, exportExcelBtn, sessionSettingsBtn, sessionCountBanner, sessionCountInput,
-      sessionCountSaveBtn, sessionCountCancelBtn, sessionCountCurrentEl, sessionCountMaxEl;
-
-  function isAdmin(){ return AUTH.role === 'admin'; }
-
-  function roleLabel(){
+      roleBadge, logoutBtn, lastSyncLabel, lastDigestLabel, exportExcelBtn, sessionSettingsBtn, stepOpenDateBtn, sessionCountBanner, sessionCountInput,
+      sessionCountSaveBtn, sessionCountCancelBtn, sessionCountCurrentEl, sessionCountMaxEl, stepOpenDateBanner, stepOpenDateInput,
+      stepOpenDateSaveBtn, stepOpenDateCancelBtn;
     if(AUTH.role === 'admin') return '관리자 계정';
     if(AUTH.region && AUTH.region !== 'all') return AUTH.region + ' 열람 계정';
     return '전체 열람 계정';
@@ -1004,8 +1059,20 @@
     baseRows.forEach(function(r){ var k = r.round || DEFAULT_ROUND; counts[k] = (counts[k] || 0) + 1; });
 
     var items = [{ key:'all', label:'전체', count: baseRows.length }]
-      .concat(all.map(function(r){ return { key:r, label:r, count: counts[r] || 0 }; }));
+      .concat(all.map(function(r){
+        var stepNum = String(r).replace(/[^0-9]/g, '');
+        var label = stepNum ? 'Step ' + stepNum : r;
+        return { key:r, label:label, count: counts[r] || 0 };
+      }));
     roundNavEl.innerHTML = buildNavHTML(items, current, 'round');
+    if(!stepMessageEl) return;
+    if(String(current).replace(/[^0-9]/g, '') === '2'){
+      stepMessageEl.textContent = getStep2OpenMessage();
+      stepMessageEl.style.display = 'block';
+    } else {
+      stepMessageEl.textContent = '';
+      stepMessageEl.style.display = 'none';
+    }
   }
 
   function shouldGateUpload(){
@@ -1092,6 +1159,7 @@
     addRowBtn.hidden = !showCollectionControls;
     driveSyncBtn.hidden = !showCollectionControls;
     if(sessionSettingsBtn) sessionSettingsBtn.hidden = !showCollectionControls;
+    if(stepOpenDateBtn) stepOpenDateBtn.hidden = !admin;
     // 권역 공유 계정이 아직 기업을 안 골랐으면(uploadGated), 엑셀 내보내기도 잠가둬요.
     // 안 그러면 고르기 전 상태에서 눌러서 권역 전체 데이터가 그대로 새어나갈 수 있어요.
     if(exportExcelBtn) exportExcelBtn.hidden = uploadGated;
@@ -1467,7 +1535,20 @@
     roundNavEl.addEventListener('click', function(e){
       var btn = e.target.closest('.region-nav-item');
       if(!btn) return;
-      filters.round = btn.getAttribute('data-round');
+      var selectedRound = btn.getAttribute('data-round');
+      var stepNum = String(selectedRound || '').replace(/[^0-9]/g, '');
+      if(stepNum === '2'){
+        if(stepMessageEl){
+          stepMessageEl.textContent = getStep2OpenMessage();
+          stepMessageEl.style.display = 'block';
+        }
+        return;
+      }
+      if(stepMessageEl){
+        stepMessageEl.textContent = '';
+        stepMessageEl.style.display = 'none';
+      }
+      filters.round = selectedRound;
       renderRegionNav(); renderRoundNav(); renderTable(); renderRowCountLabel();
     });
     filterStatus.addEventListener('change', function(){
@@ -1603,10 +1684,36 @@
       if(sessionCountCurrentEl) sessionCountCurrentEl.textContent = String(STATE.sessionCount);
       if(sessionCountInput) sessionCountInput.value = STATE.sessionCount;
       sessionCountBanner.hidden = !sessionCountBanner.hidden;
+      if(stepOpenDateBanner) stepOpenDateBanner.hidden = true;
+    });
+    if(stepOpenDateBtn) stepOpenDateBtn.addEventListener('click', function(){
+      if(!isAdmin()) return;
+      if(stepOpenDateInput) stepOpenDateInput.value = getStep2OpenDate();
+      if(stepOpenDateBanner) stepOpenDateBanner.hidden = !stepOpenDateBanner.hidden;
+      if(sessionCountBanner) sessionCountBanner.hidden = true;
     });
     if(sessionCountCancelBtn) sessionCountCancelBtn.addEventListener('click', function(){
       sessionCountBanner.hidden = true;
     });
+    if(stepOpenDateSaveBtn) stepOpenDateSaveBtn.addEventListener('click', function(){
+      if(!isAdmin()) return;
+      var val = stepOpenDateInput.value;
+      if(!val) {
+        alert('오픈 예정일을 선택해 주세요.');
+        return;
+      }
+      setStep2OpenDate(val);
+      stepOpenDateBanner.hidden = true;
+      renderRoundNav();
+    });
+    if(stepOpenDateCancelBtn) stepOpenDateCancelBtn.addEventListener('click', function(){
+      stepOpenDateBanner.hidden = true;
+    });
+    if(stepOpenDateBanner) {
+      stepOpenDateBanner.addEventListener('click', function(e){
+        if(e.target && e.target.closest('#step-open-date-cancel-btn')) return;
+      });
+    }
     if(sessionCountSaveBtn) sessionCountSaveBtn.addEventListener('click', function(){
       var n = parseInt(sessionCountInput.value, 10);
       if(!n || n < 1 || n > MAX_SESSIONS){
@@ -1694,6 +1801,7 @@
     searchInput = document.getElementById('search-input');
     regionNavEl = document.getElementById('region-nav');
     roundNavEl = document.getElementById('round-nav');
+    stepMessageEl = document.getElementById('step-message');
     filterStatus = document.getElementById('filter-status');
     filterFlag = document.getElementById('filter-flag');
     addRowBtn = document.getElementById('add-row-btn');
@@ -1710,14 +1818,21 @@
     lastDigestLabel = document.getElementById('last-digest-label');
     exportExcelBtn = document.getElementById('export-excel-btn');
     sessionSettingsBtn = document.getElementById('session-settings-btn');
+    stepOpenDateBtn = document.getElementById('step-open-date-btn');
     sessionCountBanner = document.getElementById('session-count-banner');
     sessionCountInput = document.getElementById('session-count-input');
     sessionCountSaveBtn = document.getElementById('session-count-save-btn');
     sessionCountCancelBtn = document.getElementById('session-count-cancel-btn');
     sessionCountCurrentEl = document.getElementById('session-count-current');
     sessionCountMaxEl = document.getElementById('session-count-max');
+    stepOpenDateBanner = document.getElementById('step-open-date-banner');
+    stepOpenDateInput = document.getElementById('step-open-date-input');
+    stepOpenDateSaveBtn = document.getElementById('step-open-date-save-btn');
+    stepOpenDateCancelBtn = document.getElementById('step-open-date-cancel-btn');
     if(sessionCountInput) sessionCountInput.max = String(MAX_SESSIONS);
     if(sessionCountMaxEl) sessionCountMaxEl.textContent = String(MAX_SESSIONS);
+    if(stepOpenDateInput) stepOpenDateInput.value = getStep2OpenDate();
+    if(stepOpenDateBtn) stepOpenDateBtn.hidden = !isAdmin();
     regionSidebarSection = document.getElementById('region-sidebar-section');
     loginScreen = document.getElementById('login-screen');
     loginForm = document.getElementById('login-form');

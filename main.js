@@ -1,0 +1,55 @@
+function doGet(e) {
+  var params = (e && e.parameter) || {};
+  var user = authenticate(params.u, params.p);
+  if (!user) {
+    return respond({ error: 'auth', message: '아이디 또는 비밀번호가 올바르지 않아요.' });
+  }
+  var data = readAll();
+  var rows = data.rows;
+  if (user.region && user.region !== 'all') {
+    rows = rows.filter(function (r) { return (r.region || '미지정') === user.region; });
+  }
+  return respond({ rows: rows, role: user.role, region: user.region, lastSync: getLastSyncInfo(), sessionCount: data.sessionCount, lastDigest: getLastDigestInfo() });
+}
+
+function doPost(e) {
+  try {
+    var body = JSON.parse(e.postData.contents);
+    var user = authenticate(body.u, body.p);
+    if (!user) {
+      return respond({ ok: false, error: 'auth', message: '아이디 또는 비밀번호가 올바르지 않아요.' });
+    }
+
+    if (body.action === 'setUpload') {
+      return respond(setUploadField(user, body.id, body.field, body.value));
+    }
+
+    if (user.role !== 'admin') {
+      return respond({ ok: false, error: 'forbidden', message: '이 계정은 수정 권한이 없어요.' });
+    }
+
+    if (body.action === 'upsert' && body.row) {
+      upsertRow(body.row);
+      return respond({ ok: true });
+    }
+    if (body.action === 'delete' && body.id) {
+      deleteRow(body.id);
+      return respond({ ok: true });
+    }
+    if (body.action === 'syncFromDrive') {
+      var result = syncFromDrive();
+      recordSyncResult(result);
+      return respond({ ok: true, result: result, lastSync: getLastSyncInfo() });
+    }
+    if (body.action === 'setSessionCount') {
+      return respond(setSessionCountConfig(body.value));
+    }
+    return respond({ ok: false, error: 'unknown action' });
+  } catch (err) {
+    return respond({ ok: false, error: String(err) });
+  }
+}
+
+function respond(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
