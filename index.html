@@ -401,6 +401,10 @@
     return '전체 열람 계정';
   }
 
+  function isAdmin(){
+    return AUTH.role === 'admin';
+  }
+
   function loadStoredAuth(){
     try{
       var raw = localStorage.getItem(AUTH_STORAGE_KEY);
