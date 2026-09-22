@@ -143,9 +143,20 @@ function sendCompanyReminders() {
 // 알림 센터에서 관리자가 직접 쓴 제목·본문으로 선택한 기업들에게 수동으로 보내는 독촉메일.
 // sendCompanyReminders()(고정 템플릿, 매일 새벽 자동 발송)와는 완전히 별개 경로예요.
 function sendCustomReminderEmails(ids, subject, body, user) {
+  Logger.log('sendCustomReminderEmails 시작 — ids=' + JSON.stringify(ids) + ' subjectLen=' + (subject ? subject.length : 0));
+
   if (!subject || !body || !ids || !ids.length) {
+    Logger.log('sendCustomReminderEmails 입력 검증 실패');
     return { ok: false, error: 'invalid', message: '제목·본문과 받는 기업을 확인해주세요.' };
   }
+
+  // 잔여 발송 가능 건수(쿼터)를 먼저 로그로 남겨요 — 실패 원인이 쿼터 초과인지 바로 알 수 있게.
+  try {
+    Logger.log('남은 메일 발송 가능 건수(MailApp quota): ' + MailApp.getRemainingDailyQuota());
+  } catch (quotaErr) {
+    Logger.log('쿼터 조회 실패: ' + quotaErr);
+  }
+
   var data = readAll();
   var byId = {};
   data.rows.forEach(function (r) { byId[r.id] = r; });
@@ -154,15 +165,20 @@ function sendCustomReminderEmails(ids, subject, body, user) {
   var skipped = [];
   ids.forEach(function (id) {
     var r = byId[id];
-    if (!r) { skipped.push(id + '(존재하지 않음)'); return; }
-    if (!r.contactEmail) { skipped.push(r.company + '(이메일 없음)'); return; }
+    if (!r) { Logger.log('행을 못 찾음: id=' + id); skipped.push(id + '(존재하지 않음)'); return; }
+    if (!r.contactEmail) { Logger.log(r.company + ': 이메일 없음, 건너뜀'); skipped.push(r.company + '(이메일 없음)'); return; }
     try {
+      Logger.log(r.company + '(' + r.contactEmail + ')에 발송 시도');
       MailApp.sendEmail(r.contactEmail, subject, body);
+      Logger.log(r.company + ' 발송 성공');
       sentCount++;
     } catch (err) {
-      skipped.push(r.company + '(' + err + ')');
+      Logger.log(r.company + ' 발송 실패: ' + err + (err && err.stack ? ('\n' + err.stack) : ''));
+      skipped.push(r.company + '(' + (err && err.message ? err.message : err) + ')');
     }
   });
+
+  Logger.log('sendCustomReminderEmails 종료 — 성공 ' + sentCount + '건, 실패/제외 ' + skipped.length + '건');
 
   if (user) {
     appendLog(user, 'sendReminder', '', '',

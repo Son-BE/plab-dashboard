@@ -1693,8 +1693,9 @@
         return res.json();
       })
       .then(function(data){
+        console.log('[알림 센터] sendReminderEmails 응답:', data);
         if(!data || data.ok === false){
-          alert((data && data.message) || '메일 발송에 실패했어요.');
+          alert((data && data.message) || ((data && data.error) ? ('발송 실패: ' + data.error) : '메일 발송에 실패했어요. (콘솔(F12)에서 응답 내용을 확인해보세요)'));
           return;
         }
         if(notifyResultEl){
@@ -1705,8 +1706,8 @@
         }
       })
       .catch(function(err){
-        console.error(err);
-        alert('메일 발송 중 문제가 생겼어요.');
+        console.error('[알림 센터] sendReminderEmails 요청 실패:', err);
+        alert('메일 발송 중 문제가 생겼어요: ' + (err && err.message ? err.message : err));
       })
       .finally(function(){
         notifySendBtn.disabled = false;

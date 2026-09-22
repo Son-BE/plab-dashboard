@@ -21,6 +21,7 @@ function doGet(e) {
 function doPost(e) {
   try {
     var body = JSON.parse(e.postData.contents);
+    Logger.log('doPost action=' + body.action + ' user=' + body.u);
     var user = authenticate(body.u, body.p);
     if (!user) {
       return respond({ ok: false, error: 'auth', message: '아이디 또는 비밀번호가 올바르지 않아요.' });
@@ -56,9 +57,10 @@ function doPost(e) {
     if (body.action === 'sendReminderEmails') {
       return respond(sendCustomReminderEmails(body.ids, body.subject, body.body, user));
     }
-    return respond({ ok: false, error: 'unknown action' });
+    return respond({ ok: false, error: 'unknown action', message: '알 수 없는 요청이에요(action: ' + body.action + '). 배포가 최신 코드로 안 됐을 수 있어요.' });
   } catch (err) {
-    return respond({ ok: false, error: String(err) });
+    Logger.log('doPost 오류: ' + err + (err && err.stack ? ('\n' + err.stack) : ''));
+    return respond({ ok: false, error: String(err), message: String(err) });
   }
 }
 
