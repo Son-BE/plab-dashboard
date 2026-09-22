@@ -298,8 +298,39 @@
   .task-box {
     background: var(--panel);
     border: 1px solid var(--line);
-    border-radius: 14px;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+  }
+
+  .mini-card { padding: 18px; }
+  .mini-card h3 { margin: 0 0 12px; font-size: 17px; }
+
+  .side-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+  .side-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 14px;
+  }
+  .side-item:last-child { border-bottom: none; }
+
+  .task-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 13px;
+  }
+  .task-item:last-child { border-bottom: none; }
+
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1.8fr 1.1fr;
+    gap: 18px;
+    margin-bottom: 20px;
   }
 
   .settings-card {
@@ -362,9 +393,9 @@
   .stat-card {
     background: var(--panel);
     border: 1px solid var(--line);
-    border-radius: 14px;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-    padding: 16px 16px 14px;
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    padding: 18px 18px 16px;
   }
 
   .stat-card.wide { grid-column: 1 / -1; }
@@ -373,11 +404,11 @@
     color: var(--muted);
     font-size: 13px;
     font-weight: 600;
-    margin-bottom: 10px;
+    margin-bottom: 14px;
   }
 
   .stat-value {
-    font-size: 28px;
+    font-size: 30px;
     font-weight: 800;
     letter-spacing: -0.05em;
     line-height: 1.1;
@@ -723,13 +754,13 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
     text-align: left;
-    padding: 10px 8px;
+    padding: 12px 10px;
     border-bottom: 1px solid var(--line);
     white-space: nowrap;
   }
 
   tbody td {
-    padding: 7px 8px;
+    padding: 8px 10px;
     border-bottom: 1px solid var(--line);
     vertical-align: middle;
   }
@@ -814,6 +845,7 @@
 
   @media (max-width: 1100px) {
     .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .main-grid { grid-template-columns: 1fr; }
   }
 
   @media (max-width: 900px) {
@@ -901,6 +933,8 @@
   </section>
 
   <section class="stats-grid" id="stats-grid" aria-label="요약 통계"></section>
+
+  <section class="main-grid" id="quick-panels" aria-label="처리 필요 항목"></section>
 
   <section class="toolbar">
     <div class="toolbar-search">
@@ -1058,7 +1092,7 @@
   var AUTH = { u:null, p:null, role:null, region:null };
   var pollingStarted = false;
 
-  var appRoot, statsGrid, rowsBody, tableHeadEl, rowCountLabel, searchInput, regionNavEl, roundNavEl, stepMessageEl, filterStatus, filterFlag,
+  var appRoot, statsGrid, quickPanelsEl, rowsBody, tableHeadEl, rowCountLabel, searchInput, regionNavEl, roundNavEl, stepMessageEl, filterStatus, filterFlag,
       addRowBtn, clearExamplesBtn, regionListEl, saveDot, saveText, refreshBtn, setupBanner, setupUrlInput, setupSaveBtn,
       driveSyncBtn, regionSidebarSection, loginScreen, loginForm, loginUsername, loginPassword, loginError, loginSubmit,
       roleBadge, logoutBtn, lastSyncLabel, lastDigestLabel, exportExcelBtn, sessionSettingsBtn, stepOpenDateBtn, sessionCountBanner, sessionCountInput,
@@ -1781,6 +1815,45 @@
     }
   }
 
+  // "즉시 처리 필요"·"회차별 참여 현황" — 전부 STATE.rows에서 바로 계산하는 실데이터예요.
+  // 새로 만든 값이 없어서 renderStats()의 computeStats()와는 별도로 여기서만 파생시켜요.
+  function renderQuickPanels(){
+    if(!quickPanelsEl) return;
+    var rows = STATE.rows;
+    var delayed = rows.filter(function(r){ return r.flag === 'alert' || r.flag === 'issue'; }).length;
+    var missingDocs = rows.filter(function(r){ return !r.plan || !r.report; }).length;
+    var missingDate = rows.filter(function(r){ return !r.date; }).length;
+    var missingEmail = rows.filter(function(r){ return !r.contactEmail; }).length;
+    var exampleCount = rows.filter(function(r){ return r.isExample; }).length;
+
+    var roundCounts = {};
+    rows.forEach(function(r){ var k = r.round || DEFAULT_ROUND; roundCounts[k] = (roundCounts[k] || 0) + 1; });
+    var roundKeys = Object.keys(roundCounts).sort();
+    var roundItems = roundKeys.length
+      ? roundKeys.map(function(k){
+          var stepNum = String(k).replace(/[^0-9]/g, '');
+          var label = stepNum ? 'Step ' + stepNum : k;
+          return '<li class="side-item"><span>' + escapeHtml(label) + '</span><span class="chip">' + roundCounts[k] + '개사</span></li>';
+        }).join('')
+      : '<li class="side-item"><span>데이터 없음</span></li>';
+
+    quickPanelsEl.innerHTML =
+      '<div class="mini-card">' +
+        '<h3>즉시 처리 필요</h3>' +
+        '<ul class="side-list">' +
+          '<li class="side-item"><span>지연 표시 기업(경고·문제)</span><span class="chip' + (delayed ? '' : ' muted') + '">' + delayed + '건</span></li>' +
+          '<li class="side-item"><span>계획서·보고서 미제출</span><span class="chip' + (missingDocs ? '' : ' muted') + '">' + missingDocs + '건</span></li>' +
+          '<li class="side-item"><span>협약일자 미설정</span><span class="chip' + (missingDate ? '' : ' muted') + '">' + missingDate + '건</span></li>' +
+          '<li class="side-item"><span>담당자 이메일 미등록</span><span class="chip' + (missingEmail ? '' : ' muted') + '">' + missingEmail + '건</span></li>' +
+        '</ul>' +
+      '</div>' +
+      '<div class="mini-card">' +
+        '<h3>회차별 참여 현황</h3>' +
+        '<ul class="side-list">' + roundItems + '</ul>' +
+        (exampleCount ? '<div class="task-item"><span>예시 데이터 남음</span><strong>' + exampleCount + '개</strong></div>' : '') +
+      '</div>';
+  }
+
   function buildNavHTML(items, activeKey, dataAttr){
     return items.map(function(it){
       return '<button type="button" class="region-nav-item' + (it.key === activeKey ? ' active' : '') + '" data-' + dataAttr + '="' + escapeHtml(it.key) + '">' +
@@ -1911,6 +1984,7 @@
 
   function renderAll(){
     renderStats();
+    renderQuickPanels();
     renderRegionNav();
     renderRoundNav();
     renderTable();
@@ -2565,6 +2639,7 @@
   function init(){
     appRoot = document.getElementById('app');
     statsGrid = document.getElementById('stats-grid');
+    quickPanelsEl = document.getElementById('quick-panels');
     chartTooltipEl = document.getElementById('chart-tooltip');
     rowsBody = document.getElementById('rows-body');
     tableHeadEl = document.getElementById('table-head');
