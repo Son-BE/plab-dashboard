@@ -503,6 +503,38 @@
   .severity-seg.alert,
   .severity-seg.issue { background: var(--danger); }
 
+  /* 세션 현황 — 회차별 완료율 추이. 회차가 순차적으로 진행되며 값이 바뀌는 데이터라
+     막대 대신 라인+영역 차트로 표현해요(1회차→N회차로 이어지는 하나의 선). */
+  .session-chart-svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .session-chart-gridline { stroke: var(--line); stroke-width: 1; }
+  .session-chart-tick { fill: var(--muted); font-size: 10px; }
+  .session-trend-line { fill: none; stroke: var(--primary); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .session-trend-area { fill: rgba(37, 99, 235, 0.08); }
+  .session-trend-dot { fill: var(--primary); stroke: var(--panel); stroke-width: 2; r: 3; transition: r 0.12s ease; }
+  .session-trend-dot.end, .session-trend-dot.stuck { r: 5; }
+  .session-trend-hit { fill: transparent; cursor: pointer; }
+  .session-trend-crosshair { stroke: var(--line); stroke-width: 1; opacity: 0; pointer-events: none; transition: opacity 0.1s ease; }
+  .session-chart-value-label { fill: var(--text); font-size: 12px; font-weight: 700; }
+
+  .chart-tooltip {
+    position: fixed;
+    z-index: 60;
+    background: #101828;
+    color: #fff;
+    border-radius: 8px;
+    padding: 7px 10px;
+    font-size: 12px;
+    line-height: 1.5;
+    font-weight: 700;
+    pointer-events: none;
+    opacity: 0;
+    transform: translate(-50%, calc(-100% - 10px));
+    transition: opacity 0.1s ease;
+    box-shadow: 0 8px 20px rgba(16, 24, 40, 0.25);
+    white-space: nowrap;
+  }
+  .chart-tooltip.visible { opacity: 1; }
+
   /* ---- 표 셀 보정: 기존 렌더 함수들이 이미 내보내고 있던 클래스인데 스타일이 없었어요 ---- */
   td.center, th.center { text-align: center; }
 
@@ -692,29 +724,6 @@
     color: var(--text);
   }
 
-  .view-tabs {
-    display: flex;
-    gap: 6px;
-    margin: 6px 0 12px;
-  }
-
-  .view-tab {
-    height: 36px;
-    padding: 0 16px;
-    border-radius: 10px;
-    border: 1px solid var(--line);
-    background: var(--panel);
-    color: var(--muted);
-    font-weight: 700;
-    cursor: pointer;
-  }
-
-  .view-tab.active {
-    background: var(--primary);
-    border-color: var(--primary);
-    color: white;
-  }
-
   .table-card {
     overflow: hidden;
     border-radius: 14px;
@@ -869,16 +878,17 @@
 
     <div class="nav-group">
       <div class="sidebar-title">운영</div>
-      <button class="nav-item active" type="button"><span class="icon"></span>대시보드</button>
+      <button class="nav-item active" type="button" id="nav-dashboard"><span class="icon"></span>대시보드</button>
       <button class="nav-item" type="button" disabled><span class="icon"></span>고객사 관리<span class="nav-item-soon">준비 중</span></button>
       <button class="nav-item" type="button" disabled><span class="icon"></span>프로그램<span class="nav-item-soon">준비 중</span></button>
-      <button class="nav-item" type="button" disabled><span class="icon"></span>세션 현황<span class="nav-item-soon">준비 중</span></button>
+      <button class="nav-item" type="button" id="nav-sessions"><span class="icon"></span>세션 현황</button>
+      <button class="nav-item" type="button" id="nav-collect"><span class="icon"></span>취합현황</button>
     </div>
 
     <div class="nav-group">
       <div class="sidebar-title">리포트</div>
       <button class="nav-item" type="button" disabled><span class="icon"></span>보고서<span class="nav-item-soon">준비 중</span></button>
-      <button class="nav-item" type="button" disabled><span class="icon"></span>자료 제출<span class="nav-item-soon">준비 중</span></button>
+      <button class="nav-item" type="button" id="nav-upload"><span class="icon"></span>자료 제출</button>
       <button class="nav-item" type="button" disabled><span class="icon"></span>알림 센터<span class="nav-item-soon">준비 중</span></button>
     </div>
 
@@ -921,10 +931,13 @@
     </div>
   </section>
 
+  <div id="dashboard-view">
   <section class="stats-grid" id="stats-grid" aria-label="요약 통계"></section>
 
   <section class="main-grid" id="quick-panels" aria-label="처리 필요 항목"></section>
+  </div>
 
+  <div id="table-view" hidden>
   <section class="toolbar">
     <div class="toolbar-search">
       <input id="search-input" type="text" placeholder="기업명으로 검색" autocomplete="off">
@@ -1026,11 +1039,6 @@
   <p class="subtitle" id="last-digest-label" style="margin:-8px 0 0;" hidden></p>
   <p class="subtitle" id="upload-company-banner" style="margin:-8px 0 0;" hidden></p>
 
-  <div class="view-tabs" id="view-tabs">
-    <button type="button" class="view-tab active" data-view="collect">취합현황</button>
-    <button type="button" class="view-tab" data-view="upload">업로드현황</button>
-  </div>
-
   <section class="table-card" id="upload-company-gate" hidden>
     <div style="padding:22px; display:flex; flex-direction:column; gap:10px; align-items:flex-start;">
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -1053,6 +1061,31 @@
       <span id="row-count-label"></span>
       <button class="btn btn-primary" id="add-row-btn" type="button">+ 멘티기업 추가</button>
     </div>
+  </section>
+  </div>
+
+  <section id="session-view" hidden aria-label="세션 현황">
+    <h2 style="margin:0 0 4px; font-size:22px; letter-spacing:-0.03em;">세션 현황</h2>
+    <p class="subtitle" id="session-view-scope" style="margin:0 0 18px;"></p>
+
+    <section class="stats-grid" id="session-stats-grid" aria-label="세션 요약 통계"></section>
+
+    <section class="settings-card" style="padding:20px 20px 18px; margin-bottom:18px;">
+      <h3 class="settings-title" style="margin:0 0 16px;">회차별 완료율</h3>
+      <div id="session-chart-mount"></div>
+      <div class="chart-tooltip" id="session-chart-tooltip" role="tooltip"></div>
+    </section>
+
+    <section class="table-card">
+      <div class="table-wrap" style="max-height:none;">
+        <table>
+          <thead>
+            <tr><th class="col-session">회차</th><th class="col-progress">완료 기업 수</th><th class="col-progress">완료율</th></tr>
+          </thead>
+          <tbody id="session-table-body"></tbody>
+        </table>
+      </div>
+    </section>
   </section>
   </div>
 </div>
@@ -1108,6 +1141,7 @@
     return arr;
   }
   var viewMode = 'collect'; // 'collect'(취합현황) | 'upload'(업로드현황)
+  var currentPage = 'dashboard'; // 'dashboard' | 'sessions' — 사이드바 대시보드/세션 현황 전환
 
   var STATE = { rows: [], lastSync: null, lastDigest: null, sessionCount: 6, flagThresholds: { caution:3, alert:5, issue:7 } };
   var filters = { q:'', region:'all', status:'all', flag:'all', round: DEFAULT_ROUND };
@@ -1130,7 +1164,9 @@
       roleBadge, logoutBtn, lastSyncLabel, lastDigestLabel, exportExcelBtn, sessionSettingsBtn, stepOpenDateBtn, sessionCountBanner, sessionCountInput,
       sessionCountSaveBtn, sessionCountCancelBtn, sessionCountCurrentEl, sessionCountMaxEl, stepOpenDateBanner, stepOpenDateInput,
       stepOpenDateSaveBtn, stepOpenDateCancelBtn, changeLogBtn, changeLogBanner, changeLogBody, changeLogRefreshBtn, changeLogCloseBtn,
-      flagThresholdsBtn, flagThresholdsBanner, flagCautionInput, flagAlertInput, flagIssueInput, flagThresholdsSaveBtn, flagThresholdsCancelBtn;
+      flagThresholdsBtn, flagThresholdsBanner, flagCautionInput, flagAlertInput, flagIssueInput, flagThresholdsSaveBtn, flagThresholdsCancelBtn,
+      navDashboardBtn, navSessionsBtn, dashboardViewEl, sessionViewEl, sessionViewScopeEl, sessionStatsGridEl, sessionChartMountEl, sessionTableBodyEl,
+      sessionChartTooltipEl, navCollectBtn, navUploadBtn, tableViewEl;
 
   function roleLabel(){
     if(AUTH.role === 'admin') return '관리자 계정';
@@ -1283,6 +1319,169 @@
       planCount: planCount, reportCount: reportCount,
       issueCount: issueCount, alertCount: alertCount, cautionCount: cautionCount, byRegion: byRegion
     };
+  }
+
+  // ── 세션 현황 ────────────────────────────────────────────────────────
+  // 회차별(1~N회차) 체크 완료율을 계산해요. 대시보드의 "회차 진행률"과 달리 여기는
+  // 항상 matchesFilters()로 걸러진(사이드바 권역·회차 선택이 반영된) 행 기준이에요.
+  function computeSessionStats(rows, sessionCount){
+    var perSession = [];
+    for(var i = 0; i < sessionCount; i++){
+      var checked = 0;
+      for(var r = 0; r < rows.length; r++){ if(rows[r].sessions[i]) checked++; }
+      perSession.push({ n: i + 1, checked: checked, total: rows.length, pct: rows.length ? Math.round(checked / rows.length * 100) : 0 });
+    }
+    var totalChecked = 0;
+    rows.forEach(function(row){ totalChecked += row.sessions.filter(Boolean).length; });
+    var totalSlots = rows.length * sessionCount;
+    var stuck = null;
+    perSession.forEach(function(s){ if(!stuck || s.pct < stuck.pct) stuck = s; });
+    return {
+      perSession: perSession,
+      total: rows.length,
+      overallRate: totalSlots ? Math.round(totalChecked / totalSlots * 100) : 0,
+      avgSession: rows.length ? (totalChecked / rows.length) : 0,
+      stuck: stuck
+    };
+  }
+
+  // 회차별 완료율을 1회차→N회차로 이어지는 라인+영역 차트로 그려요. 회차가 순차적으로
+  // 진행되며 값이 바뀌는 데이터라 막대보다 선이 데이터 성격에 더 맞아요. 단일 시리즈라
+  // 범례는 없고, 끝점(마지막 회차)과 가장 정체된 회차만 선택적으로 직접 라벨링해요.
+  function buildSessionChartSVG(perSession){
+    if(!perSession.length){
+      return '<p class="subtitle" style="margin:4px 0 0;">표시할 회차가 없어요.</p>';
+    }
+    var leftPad = 34, rightPad = 16, topPad = 16, bottomPad = 26, plotH = 160;
+    var count = perSession.length;
+    var plotW = Math.max(count - 1, 1) * 64;
+    var viewW = leftPad + plotW + rightPad;
+    var baseY = topPad + plotH;
+    var viewH = baseY + bottomPad;
+
+    function xAt(i){ return count > 1 ? leftPad + (plotW * i / (count - 1)) : leftPad + plotW / 2; }
+    function yAt(pct){ return topPad + plotH - (plotH * pct / 100); }
+
+    var stuckN = perSession.reduce(function(min, s){ return s.pct < min.pct ? s : min; }, perSession[0]).n;
+    var lastN = perSession[perSession.length - 1].n;
+
+    var gridlines = [0, 25, 50, 75, 100].map(function(v){
+      var y = yAt(v);
+      return '<line class="session-chart-gridline" x1="' + leftPad + '" y1="' + y + '" x2="' + (leftPad + plotW) + '" y2="' + y + '"></line>' +
+        '<text class="session-chart-tick" x="' + (leftPad - 6) + '" y="' + (y + 3) + '" text-anchor="end">' + v + '</text>';
+    }).join('');
+
+    var points = perSession.map(function(s, i){ return { x: xAt(i), y: yAt(s.pct), s: s }; });
+    var linePath = points.map(function(p, i){ return (i === 0 ? 'M' : 'L') + p.x + ',' + p.y; }).join(' ');
+    var last = points[points.length - 1];
+    var areaPath = linePath + ' L' + last.x + ',' + baseY + ' L' + points[0].x + ',' + baseY + ' Z';
+
+    var dots = points.map(function(p){
+      var cls = 'session-trend-dot';
+      if(p.s.n === lastN) cls += ' end';
+      if(p.s.n === stuckN) cls += ' stuck';
+      return '<circle class="' + cls + '" cx="' + p.x + '" cy="' + p.y + '"></circle>';
+    }).join('');
+
+    var labels = points.filter(function(p){ return p.s.n === lastN || p.s.n === stuckN; })
+      .map(function(p){ return '<text class="session-chart-value-label" x="' + p.x + '" y="' + (p.y - 10) + '" text-anchor="middle">' + p.s.pct + '%</text>'; })
+      .join('');
+
+    var xLabels = points.map(function(p){
+      return '<text class="session-chart-tick" x="' + p.x + '" y="' + (baseY + 18) + '" text-anchor="middle">' + p.s.n + '회차</text>';
+    }).join('');
+
+    var slotW = count > 1 ? plotW / (count - 1) : plotW;
+    var hits = points.map(function(p, i){
+      return '<rect class="session-trend-hit" x="' + (p.x - slotW / 2) + '" y="' + topPad + '" width="' + slotW + '" height="' + plotH + '" ' +
+        'data-n="' + p.s.n + '" data-pct="' + p.s.pct + '" data-checked="' + p.s.checked + '" data-total="' + p.s.total + '"></rect>';
+    }).join('');
+
+    return '<svg class="session-chart-svg" viewBox="0 0 ' + viewW + ' ' + viewH + '" preserveAspectRatio="xMidYMid meet">' +
+      gridlines +
+      '<line class="session-trend-crosshair" x1="' + leftPad + '" y1="' + topPad + '" x2="' + leftPad + '" y2="' + baseY + '"></line>' +
+      '<path class="session-trend-area" d="' + areaPath + '"></path>' +
+      '<path class="session-trend-line" d="' + linePath + '"></path>' +
+      dots + labels + xLabels + hits +
+    '</svg>';
+  }
+
+  function showChartTooltip(tooltipEl, evt, text){
+    if(!tooltipEl) return;
+    tooltipEl.textContent = text;
+    tooltipEl.style.left = evt.clientX + 'px';
+    tooltipEl.style.top = evt.clientY + 'px';
+    tooltipEl.classList.add('visible');
+  }
+  function moveChartTooltip(tooltipEl, evt){
+    if(!tooltipEl) return;
+    tooltipEl.style.left = evt.clientX + 'px';
+    tooltipEl.style.top = evt.clientY + 'px';
+  }
+  function hideChartTooltip(tooltipEl){
+    if(tooltipEl) tooltipEl.classList.remove('visible');
+  }
+
+  function bindSessionChartHover(mount){
+    var hits = mount.querySelectorAll('.session-trend-hit');
+    var dots = mount.querySelectorAll('.session-trend-dot');
+    var crosshair = mount.querySelector('.session-trend-crosshair');
+    for(var i = 0; i < hits.length; i++){
+      (function(hit, idx){
+        hit.addEventListener('pointerenter', function(evt){
+          var dot = dots[idx];
+          if(dot && crosshair){
+            crosshair.setAttribute('x1', dot.getAttribute('cx'));
+            crosshair.setAttribute('x2', dot.getAttribute('cx'));
+            crosshair.style.opacity = '1';
+          }
+          for(var j = 0; j < dots.length; j++){
+            if(!dots[j].classList.contains('end') && !dots[j].classList.contains('stuck')) dots[j].setAttribute('r', '3');
+          }
+          if(dot) dot.setAttribute('r', '5');
+          var text = hit.getAttribute('data-n') + '회차 · ' + hit.getAttribute('data-checked') + ' / ' + hit.getAttribute('data-total') + '개사 (' + hit.getAttribute('data-pct') + '%)';
+          showChartTooltip(sessionChartTooltipEl, evt, text);
+        });
+        hit.addEventListener('pointermove', function(evt){ moveChartTooltip(sessionChartTooltipEl, evt); });
+        hit.addEventListener('pointerleave', function(){
+          if(crosshair) crosshair.style.opacity = '0';
+          var dot = dots[idx];
+          if(dot && !dot.classList.contains('end') && !dot.classList.contains('stuck')) dot.setAttribute('r', '3');
+          hideChartTooltip(sessionChartTooltipEl);
+        });
+      })(hits[i], i);
+    }
+  }
+
+  function renderSessionView(){
+    if(!sessionStatsGridEl) return;
+    var rows = STATE.rows.filter(matchesFilters);
+    var s = computeSessionStats(rows, STATE.sessionCount);
+
+    if(sessionViewScopeEl){
+      var regionLabel = (filters.region === 'all' || !filters.region) ? '전체 권역' : filters.region;
+      var roundLabel = (filters.round === 'all' || !filters.round) ? '전체 회차' : filters.round;
+      sessionViewScopeEl.textContent = regionLabel + ' · ' + roundLabel + ' · ' + s.total + '개사 기준';
+    }
+
+    sessionStatsGridEl.innerHTML =
+      '<div class="stat-card"><div class="stat-label">평균 진행 회차</div><div class="stat-value">' + s.avgSession.toFixed(1) + '<span class="stat-unit">/ ' + STATE.sessionCount + '회차</span></div></div>' +
+      '<div class="stat-card"><div class="stat-label">가장 정체된 회차</div><div class="stat-value">' + (s.stuck ? (s.stuck.n + '회차') : '-') + '<span class="stat-unit">' + (s.stuck ? (s.stuck.pct + '%') : '') + '</span></div></div>' +
+      '<div class="stat-card"><div class="stat-label">전체 세션 체크율</div><div class="stat-value">' + s.overallRate + '<span class="stat-unit">%</span></div>' +
+        '<div class="progress"><div class="progress-bar" style="width:' + s.overallRate + '%"></div></div></div>';
+
+    if(sessionChartMountEl){
+      sessionChartMountEl.innerHTML = buildSessionChartSVG(s.perSession);
+      bindSessionChartHover(sessionChartMountEl);
+    }
+
+    if(sessionTableBodyEl){
+      sessionTableBodyEl.innerHTML = s.perSession.length
+        ? s.perSession.map(function(row){
+            return '<tr><td>' + row.n + '회차</td><td>' + row.checked + ' / ' + row.total + '</td><td>' + row.pct + '%</td></tr>';
+          }).join('')
+        : '<tr class="empty-row"><td colspan="3">표시할 회차가 없어요.</td></tr>';
+    }
   }
 
   var sortState = { field: null, dir: 'asc' };
@@ -1936,7 +2135,21 @@
     renderRoundNav();
     renderTable();
     renderRowCountLabel();
+    renderSessionView();
     clearExamplesBtn.hidden = !isAdmin() || viewMode !== 'collect' || !STATE.rows.some(function(r){ return r.isExample; });
+  }
+
+  function setPage(page){
+    currentPage = page;
+    if(dashboardViewEl) dashboardViewEl.hidden = page !== 'dashboard';
+    if(sessionViewEl) sessionViewEl.hidden = page !== 'sessions';
+    if(tableViewEl) tableViewEl.hidden = (page !== 'collect' && page !== 'upload');
+    if(navDashboardBtn) navDashboardBtn.classList.toggle('active', page === 'dashboard');
+    if(navSessionsBtn) navSessionsBtn.classList.toggle('active', page === 'sessions');
+    if(navCollectBtn) navCollectBtn.classList.toggle('active', page === 'collect');
+    if(navUploadBtn) navUploadBtn.classList.toggle('active', page === 'upload');
+    if(page === 'sessions') renderSessionView();
+    if(page === 'collect' || page === 'upload') setViewMode(page);
   }
 
   // 로그인한 계정 권한 + 현재 탭(취합현황/업로드현황)에 따라 편집용 버튼/문구를 보이거나 숨겨요.
@@ -2003,9 +2216,6 @@
   function setViewMode(mode){
     if(viewMode === mode) return;
     viewMode = mode;
-    document.querySelectorAll('.view-tab').forEach(function(t){
-      t.classList.toggle('active', t.getAttribute('data-view') === mode);
-    });
     applyRoleUI();
     renderTableHeader();
     renderTable();
@@ -2350,6 +2560,11 @@
   }
 
   function bindEvents(){
+    if(navDashboardBtn) navDashboardBtn.addEventListener('click', function(){ setPage('dashboard'); });
+    if(navSessionsBtn) navSessionsBtn.addEventListener('click', function(){ setPage('sessions'); });
+    if(navCollectBtn) navCollectBtn.addEventListener('click', function(){ setPage('collect'); });
+    if(navUploadBtn) navUploadBtn.addEventListener('click', function(){ setPage('upload'); });
+
     rowsBody.addEventListener('click', onTableClick);
     rowsBody.addEventListener('input', onTableInput);
     rowsBody.addEventListener('change', onTableChange);
@@ -2357,13 +2572,13 @@
 
     searchInput.addEventListener('input', function(){
       filters.q = searchInput.value.trim().toLowerCase();
-      renderRegionNav(); renderRoundNav(); renderTable(); renderRowCountLabel();
+      renderRegionNav(); renderRoundNav(); renderTable(); renderRowCountLabel(); renderSessionView();
     });
     regionNavEl.addEventListener('click', function(e){
       var btn = e.target.closest('.region-nav-item');
       if(!btn) return;
       filters.region = btn.getAttribute('data-region');
-      renderRegionNav(); renderRoundNav(); renderTable(); renderRowCountLabel();
+      renderRegionNav(); renderRoundNav(); renderTable(); renderRowCountLabel(); renderSessionView();
     });
     roundNavEl.addEventListener('click', function(e){
       var btn = e.target.closest('.region-nav-item');
@@ -2382,15 +2597,15 @@
         stepMessageEl.style.display = 'none';
       }
       filters.round = selectedRound;
-      renderRegionNav(); renderRoundNav(); renderTable(); renderRowCountLabel();
+      renderRegionNav(); renderRoundNav(); renderTable(); renderRowCountLabel(); renderSessionView();
     });
     filterStatus.addEventListener('change', function(){
       filters.status = filterStatus.value;
-      renderRegionNav(); renderRoundNav(); renderTable(); renderRowCountLabel();
+      renderRegionNav(); renderRoundNav(); renderTable(); renderRowCountLabel(); renderSessionView();
     });
     filterFlag.addEventListener('change', function(){
       filters.flag = filterFlag.value;
-      renderRegionNav(); renderRoundNav(); renderTable(); renderRowCountLabel();
+      renderRegionNav(); renderRoundNav(); renderTable(); renderRowCountLabel(); renderSessionView();
     });
 
     addRowBtn.addEventListener('click', function(){
@@ -2422,15 +2637,6 @@
     });
 
     refreshBtn.addEventListener('click', function(){ pollOnce(true); });
-
-    var viewTabsEl = document.getElementById('view-tabs');
-    if(viewTabsEl){
-      viewTabsEl.addEventListener('click', function(e){
-        var btn = e.target.closest('.view-tab');
-        if(!btn) return;
-        setViewMode(btn.getAttribute('data-view'));
-      });
-    }
 
     setupSaveBtn.addEventListener('click', function(){
       var val = setupUrlInput.value.trim();
@@ -2741,6 +2947,18 @@
     flagIssueInput = document.getElementById('flag-issue-input');
     flagThresholdsSaveBtn = document.getElementById('flag-thresholds-save-btn');
     flagThresholdsCancelBtn = document.getElementById('flag-thresholds-cancel-btn');
+    navDashboardBtn = document.getElementById('nav-dashboard');
+    navSessionsBtn = document.getElementById('nav-sessions');
+    dashboardViewEl = document.getElementById('dashboard-view');
+    sessionViewEl = document.getElementById('session-view');
+    sessionViewScopeEl = document.getElementById('session-view-scope');
+    sessionStatsGridEl = document.getElementById('session-stats-grid');
+    sessionChartMountEl = document.getElementById('session-chart-mount');
+    sessionTableBodyEl = document.getElementById('session-table-body');
+    sessionChartTooltipEl = document.getElementById('session-chart-tooltip');
+    navCollectBtn = document.getElementById('nav-collect');
+    navUploadBtn = document.getElementById('nav-upload');
+    tableViewEl = document.getElementById('table-view');
     if(sessionCountInput) sessionCountInput.max = String(MAX_SESSIONS);
     if(sessionCountMaxEl) sessionCountMaxEl.textContent = String(MAX_SESSIONS);
     if(stepOpenDateInput) stepOpenDateInput.value = getStep2OpenDate();
