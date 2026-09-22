@@ -18,9 +18,6 @@ var HEADERS = (function () {
   for (var n2 = 7; n2 <= MAX_SESSIONS; n2++) headers.push('upSession' + n2);
   headers.push('contactEmail');
   headers.push('folderId');
-  // 관리자가 이슈 상태를 수동으로 고정할 때 쓰는 값('' = 자동 계산 따름). 기존 배포된 시트의
-  // 컬럼 위치가 안 깨지도록 반드시 맨 끝에 추가해요.
-  headers.push('flagOverride');
   return headers;
 })();
 

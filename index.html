@@ -844,24 +844,10 @@
     font-weight: 700;
   }
 
-  .flag-badge,
   .tag,
   .status-badge {
     padding: 5px 9px;
     font-size: 12px;
-  }
-
-  /* 관리자 전용 이슈 상태 수동 지정 select — 기존 읽기 전용 배지와 같은 모양으로 보이게 */
-  select.flag-badge {
-    border: none;
-    cursor: pointer;
-    font: inherit;
-    font-weight: 700;
-    appearance: auto;
-  }
-
-  .flag-badge.is-override {
-    box-shadow: inset 0 0 0 1.5px currentColor;
   }
 
   .tag,
@@ -1214,7 +1200,7 @@
 (function(){
   // ── 1) 여기에 배포한 Google Apps Script 웹 앱 URL을 붙여넣으세요 ───────────
   var CONFIG = {
-    API_URL: 'https://script.google.com/macros/s/AKfycbw7HmLn0EkUzpiB7t-6jGbFMbFiSzsCunjbciLeV4D5hCnCdkauebaalWl15dXbjsSgzA/exec',
+    API_URL: 'https://script.google.com/macros/s/AKfycbyzION97yz6ThNASZ8PRhjv8J8dGPuzxQH1Md0g6AQbkn6P72ff90IuaadBQcPLR0TpKg/exec',
     POLL_INTERVAL_MS: 20000
   };
   // ─────────────────────────────────────────────────────────────────────
@@ -1411,9 +1397,7 @@
       date: dateVal, folderNc: r.folderNc || '', region: r.region || '', company: r.company || '',
       sessions: sessions, plan: plan, report: report,
       complete: complete,
-      flag: r.flagOverride ? r.flagOverride : computeAutoFlag(dateVal, complete),
-      flagOverride: r.flagOverride || '',
-      remark: r.remark || '', round: r.round || DEFAULT_ROUND,
+      flag: computeAutoFlag(dateVal, complete), remark: r.remark || '', round: r.round || DEFAULT_ROUND,
       contactEmail: r.contactEmail || '', folderId: r.folderId || ''
     };
     uploadFieldNames(n).forEach(function(f){ normalized[f] = !!r[f]; });
@@ -1693,9 +1677,8 @@
         return res.json();
       })
       .then(function(data){
-        console.log('[알림 센터] sendReminderEmails 응답:', data);
         if(!data || data.ok === false){
-          alert((data && data.message) || ((data && data.error) ? ('발송 실패: ' + data.error) : '메일 발송에 실패했어요. (콘솔(F12)에서 응답 내용을 확인해보세요)'));
+          alert((data && data.message) || '메일 발송에 실패했어요.');
           return;
         }
         if(notifyResultEl){
@@ -1706,8 +1689,8 @@
         }
       })
       .catch(function(err){
-        console.error('[알림 센터] sendReminderEmails 요청 실패:', err);
-        alert('메일 발송 중 문제가 생겼어요: ' + (err && err.message ? err.message : err));
+        console.error(err);
+        alert('메일 발송 중 문제가 생겼어요.');
       })
       .finally(function(){
         notifySendBtn.disabled = false;
@@ -1839,11 +1822,9 @@
 
   var FLAG_LABELS = { none:'정상', caution:'주의', alert:'경고', issue:'문제' };
 
-  // 이슈 배지는 기본은 자동 계산이지만, 관리자는 flagOverride로 특정 기업의 상태를 직접
-  // 고정할 수 있어요(협력사 계정은 여전히 읽기 전용). 마우스를 올리면 왜 이 상태인지 알 수
-  // 있게 안내를 달아요.
+  // 이슈 배지는 이제 관리자든 협력사든 직접 바꿀 수 없는 자동 계산 결과라서, 항상 읽기 전용
+  // 배지로만 보여줘요. 마우스를 올리면 왜 이 상태인지(며칠 지났는지) 알 수 있게 안내를 달아요.
   function flagTooltip(r){
-    if(r.flagOverride) return '관리자가 직접 설정한 상태예요.';
     if(r.complete) return '완료된 기업이라 지연 계산을 하지 않아요.';
     var days = daysSince(r.date);
     if(days === null) return '협약일자가 설정되지 않아서 지연 계산을 할 수 없어요.';
@@ -1852,15 +1833,7 @@
   function flagCellHTML(r){
     var flag = r.flag || 'none';
     var label = FLAG_LABELS[flag] || '정상';
-    var cls = 'flag-badge flag-' + flag + (r.flagOverride ? ' is-override' : '');
-    if(!isAdmin()){
-      return '<span class="' + cls + '" title="' + escapeHtml(flagTooltip(r)) + '">' + escapeHtml(label) + '</span>';
-    }
-    var options = [['', '자동'], ['none', '정상'], ['caution', '주의'], ['alert', '경고'], ['issue', '문제']];
-    var optionsHtml = options.map(function(o){
-      return '<option value="' + o[0] + '"' + (r.flagOverride === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
-    }).join('');
-    return '<select class="' + cls + '" data-field="flagOverride" data-id="' + escapeHtml(r.id) + '" title="' + escapeHtml(flagTooltip(r)) + '">' + optionsHtml + '</select>';
+    return '<span class="flag-badge flag-' + flag + '" title="' + escapeHtml(flagTooltip(r)) + '">' + escapeHtml(label) + '</span>';
   }
 
   function textCellHTML(opts){
@@ -2780,27 +2753,17 @@
     touchRow(row);
     if(field === 'date'){
       row.date = e.target.value;
-      // 협약일자가 바뀌면 이슈 표시(주의/경고/문제)도 그 즉시 다시 계산해서 보여줘요 —
-      // 단, 관리자가 flagOverride로 고정해뒀으면 날짜가 바뀌어도 그 값을 그대로 유지해요.
-      row.flag = row.flagOverride || computeAutoFlag(row.date, row.complete);
+      // 협약일자가 바뀌면 이슈 표시(주의/경고/문제)도 그 즉시 다시 계산해서 보여줘요.
+      row.flag = computeAutoFlag(row.date, row.complete);
       tr.className = 'flag-' + row.flag;
       var flagBadge = tr.querySelector('.flag-badge');
       if(flagBadge){
-        flagBadge.className = 'flag-badge flag-' + row.flag + (row.flagOverride ? ' is-override' : '');
+        flagBadge.className = 'flag-badge flag-' + row.flag;
         flagBadge.title = flagTooltip(row);
-        if(flagBadge.tagName !== 'SELECT') flagBadge.textContent = FLAG_LABELS[row.flag] || '정상';
+        flagBadge.textContent = FLAG_LABELS[row.flag] || '정상';
       }
       var remarkInput = tr.querySelector('[data-field="remark"]');
       if(remarkInput) remarkInput.placeholder = row.date ? '메모' : '협약일자 설정X';
-      renderStats();
-    }
-    if(field === 'flagOverride'){
-      // ''(자동)을 고르면 다시 날짜 기준 자동 계산으로 돌아가요.
-      row.flagOverride = e.target.value;
-      row.flag = row.flagOverride || computeAutoFlag(row.date, row.complete);
-      tr.className = 'flag-' + row.flag;
-      e.target.className = 'flag-badge flag-' + row.flag + (row.flagOverride ? ' is-override' : '');
-      e.target.title = flagTooltip(row);
       renderStats();
     }
     scheduleSaveRow(row.id);

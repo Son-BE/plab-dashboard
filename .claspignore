@@ -1,7 +1,0 @@
-# clasp push 대상에서 전부 제외한 뒤, 실제 Apps Script 백엔드 소스만 다시 포함해요.
-# (rootDir가 저장소 루트라서 이 파일이 없으면 legacy/*.js, index.html, Demo_*.html 등
-# 브라우저용 파일까지 전부 Apps Script 프로젝트로 올라가버려요 — 특히 legacy/_tmp_check.js는
-# 최상위 레벨에 document 참조가 있어서 서버에서 실행되는 순간 전체 스크립트가 깨졌어요.)
-**/**
-!src/**
-!appsscript.json
