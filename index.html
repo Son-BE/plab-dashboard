@@ -580,6 +580,25 @@
   .cell-input.cell-narrow { min-width: 56px; width: 64px; }
   .cell-input.company-input { min-width: 140px; font-weight: 700; }
 
+  /* 알림 센터 작성 영역 — 표 셀용 .cell-input과 달리 항상 테두리가 보이는 일반 입력 필드예요. */
+  .compose-input, .compose-textarea {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--panel);
+    color: var(--text);
+    padding: 10px 12px;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  .compose-input:focus, .compose-textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-soft);
+  }
+  .compose-input { height: 42px; }
+  .compose-textarea { min-height: 160px; line-height: 1.6; resize: vertical; }
+
   .readonly-text { color: var(--text); font-size: 13.5px; }
 
   .mini-gauge { display: flex; align-items: center; gap: 8px; min-width: 92px; }
@@ -858,6 +877,64 @@
 
   @media (max-width: 760px) {
     .stats-grid { grid-template-columns: 1fr; }
+
+    /* 자료 제출(업로드현황) 표를 가로 스크롤 대신 카드 목록으로 보여줘요 — 이 탭은
+       협력사 담당자가 휴대폰으로 볼 가능성이 높아서 별도로 신경 썼어요.
+       취합현황(관리자용 대형 편집 표)은 그대로 두고 이 클래스가 붙은 표에만 적용돼요. */
+    .table-wrap { max-height: none; }
+    table.upload-view { display: block; width: 100%; min-width: 0; }
+    table.upload-view thead { display: none; }
+    table.upload-view tbody { display: block; width: 100%; }
+    table.upload-view tr {
+      display: flex;
+      flex-direction: column;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+    table.upload-view tr.empty-row { display: block; padding: 0; border: none; box-shadow: none; }
+    table.upload-view td {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px dashed var(--line);
+      padding: 9px 0;
+      font-size: 13.5px;
+    }
+    table.upload-view td::before {
+      content: attr(data-label);
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 12px;
+      flex: none;
+    }
+    /* 기업명 칸을 카드 맨 위 제목처럼: sticky 해제하고 라벨 없이 굵게 */
+    table.upload-view td.sticky-col {
+      position: static;
+      order: 1;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 12px;
+      margin-bottom: 2px;
+    }
+    table.upload-view td.sticky-col::before { display: none; }
+    table.upload-view td.sticky-col .readonly-text { font-size: 16px; font-weight: 800; color: var(--text); }
+    table.upload-view td:nth-child(3) { order: 2; } /* 권역 */
+    table.upload-view td:nth-child(1) { order: 3; } /* 협약일자 */
+    table.upload-view td:nth-child(2) { order: 4; } /* 폴더NC */
+    table.upload-view td:nth-child(n+5):not(:last-child) { order: 10; } /* 회차·계획서·보고서 체크 항목들 */
+    table.upload-view td:last-child {
+      order: 99;
+      border-bottom: none;
+      border-top: 1px solid var(--line);
+      padding-top: 12px;
+      margin-top: 2px;
+      font-weight: 700;
+    }
+    table.upload-view .upload-toggle { width: 36px; height: 36px; font-size: 15px; }
   }
 </style>
 </head>
@@ -889,7 +966,7 @@
       <div class="sidebar-title">리포트</div>
       <button class="nav-item" type="button" disabled><span class="icon"></span>보고서<span class="nav-item-soon">준비 중</span></button>
       <button class="nav-item" type="button" id="nav-upload"><span class="icon"></span>자료 제출</button>
-      <button class="nav-item" type="button" disabled><span class="icon"></span>알림 센터<span class="nav-item-soon">준비 중</span></button>
+      <button class="nav-item" type="button" id="nav-notify"><span class="icon"></span>알림 센터</button>
     </div>
 
     <div class="nav-group">
@@ -1052,7 +1129,7 @@
 
   <section class="table-card" id="table-card-main">
     <div class="table-wrap">
-      <table>
+      <table id="main-table">
         <thead id="table-head"></thead>
         <tbody id="rows-body"></tbody>
       </table>
@@ -1085,6 +1162,33 @@
           <tbody id="session-table-body"></tbody>
         </table>
       </div>
+    </section>
+  </section>
+
+  <section id="notify-view" hidden aria-label="알림 센터">
+    <h2 style="margin:0 0 4px; font-size:22px; letter-spacing:-0.03em;">알림 센터</h2>
+    <p class="subtitle" id="notify-view-scope" style="margin:0 0 18px;"></p>
+
+    <section class="settings-card" style="padding:20px 20px 18px; margin-bottom:18px;">
+      <div class="settings-header">
+        <h3 class="settings-title">받는 기업 선택</h3>
+        <label style="display:flex; align-items:center; gap:6px; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer;">
+          <input type="checkbox" id="notify-select-all">전체 선택
+        </label>
+      </div>
+      <ul class="side-list" id="notify-recipient-list"></ul>
+    </section>
+
+    <section class="settings-card" style="padding:20px 20px 18px; margin-bottom:18px;">
+      <h3 class="settings-title" style="margin:0 0 16px;">메일 내용</h3>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <input class="compose-input" id="notify-subject-input" type="text" placeholder="제목">
+        <textarea class="compose-textarea" id="notify-body-input" rows="8" placeholder="본문"></textarea>
+      </div>
+      <div class="settings-actions">
+        <button id="notify-send-btn" class="btn btn-primary" type="button">📧 선택한 기업에 발송</button>
+      </div>
+      <p class="subtitle" id="notify-result" style="margin:12px 0 0;" hidden></p>
     </section>
   </section>
   </div>
@@ -1166,7 +1270,8 @@
       stepOpenDateSaveBtn, stepOpenDateCancelBtn, changeLogBtn, changeLogBanner, changeLogBody, changeLogRefreshBtn, changeLogCloseBtn,
       flagThresholdsBtn, flagThresholdsBanner, flagCautionInput, flagAlertInput, flagIssueInput, flagThresholdsSaveBtn, flagThresholdsCancelBtn,
       navDashboardBtn, navSessionsBtn, dashboardViewEl, sessionViewEl, sessionViewScopeEl, sessionStatsGridEl, sessionChartMountEl, sessionTableBodyEl,
-      sessionChartTooltipEl, navCollectBtn, navUploadBtn, tableViewEl;
+      sessionChartTooltipEl, navCollectBtn, navUploadBtn, tableViewEl,
+      navNotifyBtn, notifyViewEl, notifyViewScopeEl, notifyRecipientListEl, notifySelectAllEl, notifySubjectInput, notifyBodyInput, notifySendBtn, notifyResultEl;
 
   function roleLabel(){
     if(AUTH.role === 'admin') return '관리자 계정';
@@ -1484,6 +1589,114 @@
     }
   }
 
+  // ── 알림 센터 — 지연(주의/경고/문제) 기업에 관리자가 직접 쓴 제목·본문으로 수동 일괄
+  // 발송해요. sendCompanyReminders(고정 템플릿, 매일 새벽 자동 발송)와는 별개 경로예요.
+  // notifySelected는 체크 상태를 재렌더 사이에도 유지해요(새로 나타난 기업만 기본값 부여).
+  var notifySelected = {};
+  var NOTIFY_FLAG_ORDER = { issue: 0, alert: 1, caution: 2 };
+
+  function selectableNotifyRows(){
+    return STATE.rows
+      .filter(function(r){ return r.flag && r.flag !== 'none'; })
+      .sort(function(a, b){ return NOTIFY_FLAG_ORDER[a.flag] - NOTIFY_FLAG_ORDER[b.flag]; });
+  }
+
+  function updateNotifySelectAllState(){
+    if(!notifySelectAllEl) return;
+    var selectable = selectableNotifyRows().filter(function(r){ return r.contactEmail; });
+    var checkedCount = selectable.filter(function(r){ return notifySelected[r.id]; }).length;
+    notifySelectAllEl.checked = selectable.length > 0 && checkedCount === selectable.length;
+    notifySelectAllEl.indeterminate = checkedCount > 0 && checkedCount < selectable.length;
+  }
+
+  function updateNotifySendState(){
+    if(!notifySendBtn) return;
+    var count = selectableNotifyRows().filter(function(r){ return r.contactEmail && notifySelected[r.id]; }).length;
+    notifySendBtn.textContent = '📧 선택한 ' + count + '개사에 발송';
+  }
+
+  function renderNotifyView(){
+    if(!notifyRecipientListEl) return;
+    var rows = selectableNotifyRows();
+    rows.forEach(function(r){
+      if(!(r.id in notifySelected)) notifySelected[r.id] = !!r.contactEmail;
+    });
+
+    if(notifyViewScopeEl){
+      notifyViewScopeEl.textContent = rows.length ? ('지연 표시 기업 ' + rows.length + '개사(문제·경고·주의)') : '지연 표시된 기업이 없어요.';
+    }
+
+    notifyRecipientListEl.innerHTML = rows.length
+      ? rows.map(function(r){
+          var hasEmail = !!r.contactEmail;
+          var checked = hasEmail && notifySelected[r.id];
+          return '<li class="side-item">' +
+            '<label style="display:flex; align-items:center; gap:10px; flex:1; min-width:0; cursor:' + (hasEmail ? 'pointer' : 'not-allowed') + ';">' +
+              '<input type="checkbox" class="notify-recipient-checkbox" data-id="' + escapeHtml(r.id) + '"' + (checked ? ' checked' : '') + (hasEmail ? '' : ' disabled') + '>' +
+              '<span style="font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + escapeHtml(r.company || '') + '</span>' +
+              '<span style="color:var(--muted); font-size:12px; flex:none;">' + escapeHtml(r.region || '') + '</span>' +
+            '</label>' +
+            '<span style="display:flex; align-items:center; gap:8px; flex:none;">' +
+              '<span class="flag-badge flag-' + r.flag + '">' + (FLAG_LABELS[r.flag] || '') + '</span>' +
+              '<span style="font-size:12px; color:var(--muted);">' + (hasEmail ? escapeHtml(r.contactEmail) : '이메일 없음') + '</span>' +
+            '</span>' +
+          '</li>';
+        }).join('')
+      : '<li class="side-item"><span>지연 표시된 기업이 없어요.</span></li>';
+
+    updateNotifySelectAllState();
+    updateNotifySendState();
+  }
+
+  function sendReminderBatch(){
+    if(!isAdmin() || !notifySendBtn) return;
+    var subject = (notifySubjectInput.value || '').trim();
+    var body = (notifyBodyInput.value || '').trim();
+    var ids = selectableNotifyRows().filter(function(r){ return r.contactEmail && notifySelected[r.id]; }).map(function(r){ return r.id; });
+
+    if(!subject || !body){
+      alert('제목과 본문을 입력해주세요.');
+      return;
+    }
+    if(!ids.length){
+      alert('받는 기업을 1개 이상 선택해주세요.');
+      return;
+    }
+    if(!confirm('선택한 ' + ids.length + '개 기업에게 메일을 보낼까요? 되돌릴 수 없어요.')) return;
+
+    notifySendBtn.disabled = true;
+    if(notifyResultEl) notifyResultEl.hidden = true;
+
+    fetch(apiUrl, {
+      method:'POST',
+      cache:'no-store',
+      headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action:'sendReminderEmails', ids:ids, subject:subject, body:body, u:AUTH.u, p:AUTH.p })
+    }).then(function(res){
+        if(!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(function(data){
+        if(!data || data.ok === false){
+          alert((data && data.message) || '메일 발송에 실패했어요.');
+          return;
+        }
+        if(notifyResultEl){
+          notifyResultEl.hidden = false;
+          var text = '성공 ' + data.sent + '건';
+          if(data.skipped && data.skipped.length) text += ' · 실패/제외 ' + data.skipped.length + '건 (' + data.skipped.join(', ') + ')';
+          notifyResultEl.textContent = text;
+        }
+      })
+      .catch(function(err){
+        console.error(err);
+        alert('메일 발송 중 문제가 생겼어요.');
+      })
+      .finally(function(){
+        notifySendBtn.disabled = false;
+      });
+  }
+
   var sortState = { field: null, dir: 'asc' };
 
   function folderNcSortValue(v){
@@ -1568,6 +1781,8 @@
         '<th class="col-actions"></th>';
     }
     tableHeadEl.innerHTML = '<tr>' + headRow + '</tr>';
+    var mainTableEl = document.getElementById('main-table');
+    if(mainTableEl) mainTableEl.classList.toggle('upload-view', viewMode === 'upload');
     bindSortHeader();
     updateSortIndicator();
   }
@@ -1715,12 +1930,12 @@
     var uploadComplete = items.every(function(it){ return it.checked; });
     return '' +
     '<tr data-id="' + r.id + '">' +
-      '<td><span class="readonly-text">' + escapeHtml(r.date || '') + '</span></td>' +
-      '<td><span class="readonly-text">' + escapeHtml(r.folderNc || '') + '</span></td>' +
-      '<td><span class="readonly-text">' + escapeHtml(r.region || '') + '</span></td>' +
+      '<td data-label="협약일자"><span class="readonly-text">' + escapeHtml(r.date || '') + '</span></td>' +
+      '<td data-label="폴더NC"><span class="readonly-text">' + escapeHtml(r.folderNc || '') + '</span></td>' +
+      '<td data-label="권역"><span class="readonly-text">' + escapeHtml(r.region || '') + '</span></td>' +
       '<td class="sticky-col company-cell"><span class="readonly-text">' + escapeHtml(r.company || '') + '</span></td>' +
-      items.map(function(it){ return '<td class="center">' + uploadToggleHTML(r.id, it.field, it.checked, it.available) + '</td>'; }).join('') +
-      '<td class="center">' + autoCellHTML(uploadComplete, true) + '</td>' +
+      items.map(function(it){ return '<td class="center" data-label="' + escapeHtml(it.label) + '">' + uploadToggleHTML(r.id, it.field, it.checked, it.available) + '</td>'; }).join('') +
+      '<td class="center" data-label="완료">' + autoCellHTML(uploadComplete, true) + '</td>' +
     '</tr>';
   }
 
@@ -2136,6 +2351,7 @@
     renderTable();
     renderRowCountLabel();
     renderSessionView();
+    renderNotifyView();
     clearExamplesBtn.hidden = !isAdmin() || viewMode !== 'collect' || !STATE.rows.some(function(r){ return r.isExample; });
   }
 
@@ -2144,12 +2360,15 @@
     if(dashboardViewEl) dashboardViewEl.hidden = page !== 'dashboard';
     if(sessionViewEl) sessionViewEl.hidden = page !== 'sessions';
     if(tableViewEl) tableViewEl.hidden = (page !== 'collect' && page !== 'upload');
+    if(notifyViewEl) notifyViewEl.hidden = page !== 'notify';
     if(navDashboardBtn) navDashboardBtn.classList.toggle('active', page === 'dashboard');
     if(navSessionsBtn) navSessionsBtn.classList.toggle('active', page === 'sessions');
     if(navCollectBtn) navCollectBtn.classList.toggle('active', page === 'collect');
     if(navUploadBtn) navUploadBtn.classList.toggle('active', page === 'upload');
+    if(navNotifyBtn) navNotifyBtn.classList.toggle('active', page === 'notify');
     if(page === 'sessions') renderSessionView();
     if(page === 'collect' || page === 'upload') setViewMode(page);
+    if(page === 'notify') renderNotifyView();
   }
 
   // 로그인한 계정 권한 + 현재 탭(취합현황/업로드현황)에 따라 편집용 버튼/문구를 보이거나 숨겨요.
@@ -2166,6 +2385,7 @@
     if(stepOpenDateBtn) stepOpenDateBtn.hidden = !admin;
     if(changeLogBtn) changeLogBtn.hidden = !admin;
     if(flagThresholdsBtn) flagThresholdsBtn.hidden = !admin;
+    if(navNotifyBtn) navNotifyBtn.hidden = !admin;
     // 권역 공유 계정이 아직 기업을 안 골랐으면(uploadGated), 엑셀 내보내기도 잠가둬요.
     // 안 그러면 고르기 전 상태에서 눌러서 권역 전체 데이터가 그대로 새어나갈 수 있어요.
     if(exportExcelBtn) exportExcelBtn.hidden = uploadGated;
@@ -2564,6 +2784,20 @@
     if(navSessionsBtn) navSessionsBtn.addEventListener('click', function(){ setPage('sessions'); });
     if(navCollectBtn) navCollectBtn.addEventListener('click', function(){ setPage('collect'); });
     if(navUploadBtn) navUploadBtn.addEventListener('click', function(){ setPage('upload'); });
+    if(navNotifyBtn) navNotifyBtn.addEventListener('click', function(){ setPage('notify'); });
+    if(notifySelectAllEl) notifySelectAllEl.addEventListener('change', function(){
+      var checked = notifySelectAllEl.checked;
+      selectableNotifyRows().forEach(function(r){ if(r.contactEmail) notifySelected[r.id] = checked; });
+      renderNotifyView();
+    });
+    if(notifyRecipientListEl) notifyRecipientListEl.addEventListener('change', function(e){
+      var cb = e.target.closest('.notify-recipient-checkbox');
+      if(!cb) return;
+      notifySelected[cb.getAttribute('data-id')] = cb.checked;
+      updateNotifySelectAllState();
+      updateNotifySendState();
+    });
+    if(notifySendBtn) notifySendBtn.addEventListener('click', sendReminderBatch);
 
     rowsBody.addEventListener('click', onTableClick);
     rowsBody.addEventListener('input', onTableInput);
@@ -2959,6 +3193,15 @@
     navCollectBtn = document.getElementById('nav-collect');
     navUploadBtn = document.getElementById('nav-upload');
     tableViewEl = document.getElementById('table-view');
+    navNotifyBtn = document.getElementById('nav-notify');
+    notifyViewEl = document.getElementById('notify-view');
+    notifyViewScopeEl = document.getElementById('notify-view-scope');
+    notifyRecipientListEl = document.getElementById('notify-recipient-list');
+    notifySelectAllEl = document.getElementById('notify-select-all');
+    notifySubjectInput = document.getElementById('notify-subject-input');
+    notifyBodyInput = document.getElementById('notify-body-input');
+    notifySendBtn = document.getElementById('notify-send-btn');
+    notifyResultEl = document.getElementById('notify-result');
     if(sessionCountInput) sessionCountInput.max = String(MAX_SESSIONS);
     if(sessionCountMaxEl) sessionCountMaxEl.textContent = String(MAX_SESSIONS);
     if(stepOpenDateInput) stepOpenDateInput.value = getStep2OpenDate();
@@ -2978,8 +3221,7 @@
     bindEvents();
 
     if(isPlaceholder(apiUrl)){
-      // 아직 API_URL을 설정하지 않은 로컬 미리보기 상태예요. 로그인 없이 관리자
-      // 화면 예시를 그대로 보여줘요 (실제 배포에서는 이 배너가 뜨지 않아요).
+
       setupBanner.hidden = false;
       setSyncStatus('setup-needed');
       AUTH.role = 'admin'; AUTH.region = 'all';

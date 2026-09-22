@@ -53,6 +53,9 @@ function doPost(e) {
     if (body.action === 'setFlagThresholds') {
       return respond(setFlagThresholds(body.value, user));
     }
+    if (body.action === 'sendReminderEmails') {
+      return respond(sendCustomReminderEmails(body.ids, body.subject, body.body, user));
+    }
     return respond({ ok: false, error: 'unknown action' });
   } catch (err) {
     return respond({ ok: false, error: String(err) });

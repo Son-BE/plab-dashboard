@@ -140,6 +140,37 @@ function sendCompanyReminders() {
   return { sent: list.length, targeted: list.length };
 }
 
+// 알림 센터에서 관리자가 직접 쓴 제목·본문으로 선택한 기업들에게 수동으로 보내는 독촉메일.
+// sendCompanyReminders()(고정 템플릿, 매일 새벽 자동 발송)와는 완전히 별개 경로예요.
+function sendCustomReminderEmails(ids, subject, body, user) {
+  if (!subject || !body || !ids || !ids.length) {
+    return { ok: false, error: 'invalid', message: '제목·본문과 받는 기업을 확인해주세요.' };
+  }
+  var data = readAll();
+  var byId = {};
+  data.rows.forEach(function (r) { byId[r.id] = r; });
+
+  var sentCount = 0;
+  var skipped = [];
+  ids.forEach(function (id) {
+    var r = byId[id];
+    if (!r) { skipped.push(id + '(존재하지 않음)'); return; }
+    if (!r.contactEmail) { skipped.push(r.company + '(이메일 없음)'); return; }
+    try {
+      MailApp.sendEmail(r.contactEmail, subject, body);
+      sentCount++;
+    } catch (err) {
+      skipped.push(r.company + '(' + err + ')');
+    }
+  });
+
+  if (user) {
+    appendLog(user, 'sendReminder', '', '',
+      '독촉메일 발송 — 제목: ' + subject + ' · 성공 ' + sentCount + '건' + (skipped.length ? (' · 실패/제외 ' + skipped.length + '건') : ''));
+  }
+  return { ok: true, sent: sentCount, skipped: skipped };
+}
+
 function recordDigestResult(result) {
   var summary;
   if (result && result.skipped) {
