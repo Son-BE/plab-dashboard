@@ -359,62 +359,276 @@
     margin-bottom: 18px;
   }
 
-  .card {
+  .stat-card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
     padding: 16px 16px 14px;
   }
 
-  .metric-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 14px;
-  }
+  .stat-card.wide { grid-column: 1 / -1; }
 
-  .metric-head label {
+  .stat-label {
     color: var(--muted);
     font-size: 13px;
     font-weight: 600;
+    margin-bottom: 10px;
   }
 
-  .metric-value {
-    margin-bottom: 8px;
+  .stat-value {
     font-size: 28px;
     font-weight: 800;
     letter-spacing: -0.05em;
     line-height: 1.1;
   }
 
-  .delta {
-    display: inline-block;
+  .stat-value.small {
+    display: block;
+    margin-top: 4px;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: normal;
+    color: var(--text);
+  }
+
+  .stat-unit {
+    margin-left: 4px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: normal;
+  }
+
+  .progress {
+    height: 8px;
+    background: #edf2f7;
+    border-radius: 999px;
+    overflow: hidden;
+    margin-top: 10px;
+  }
+
+  .progress-bar {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--primary), #63a4ff);
+  }
+
+  .progress-bar.success { background: linear-gradient(90deg, var(--success), #35c087); }
+
+  .chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: var(--primary-soft);
+    color: var(--primary-strong);
+    font-size: 12.5px;
+    font-weight: 700;
+  }
+
+  .chip.muted { background: var(--panel-soft); color: var(--muted); }
+
+  /* 이슈 심각도 미터: 정상/주의/경고/문제 비율을 한 줄로 보여줘요. 색은 테이블의
+     .flag-badge와 같은 토큰을 그대로 써서 화면 전체에서 같은 색이 같은 뜻을 갖게 해요. */
+  .severity-meter {
+    display: flex;
+    height: 8px;
+    border-radius: 999px;
+    overflow: hidden;
+    margin-top: 12px;
+    background: #edf2f7;
+  }
+
+  .severity-seg { height: 100%; }
+  .severity-seg.normal { background: var(--success); }
+  .severity-seg.caution { background: var(--warning); }
+  .severity-seg.alert,
+  .severity-seg.issue { background: var(--danger); }
+
+  /* 권역별 참여 기업 차트 */
+  .region-chart-svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .region-chart-axis { stroke: var(--line); stroke-width: 1; }
+  .region-bar-label { fill: var(--text); font-size: 12.5px; font-weight: 600; }
+  .region-bar-value { fill: var(--muted); font-size: 12.5px; font-weight: 700; }
+  .region-bar-shape { transition: filter 0.12s ease; }
+  .region-bar-hit { fill: transparent; cursor: pointer; }
+  .region-bar-row.hovered .region-bar-shape { filter: brightness(1.08); }
+  .region-bar-row.hovered .region-bar-value { font-weight: 800; }
+
+  .chart-tooltip {
+    position: fixed;
+    z-index: 60;
+    background: #101828;
+    color: #fff;
+    border-radius: 8px;
+    padding: 7px 10px;
+    font-size: 12px;
+    line-height: 1.5;
+    font-weight: 700;
+    pointer-events: none;
+    opacity: 0;
+    transform: translate(-50%, calc(-100% - 10px));
+    transition: opacity 0.1s ease;
+    box-shadow: 0 8px 20px rgba(16, 24, 40, 0.25);
+    white-space: nowrap;
+  }
+
+  .chart-tooltip.visible { opacity: 1; }
+
+  /* ---- 표 셀 보정: 기존 렌더 함수들이 이미 내보내고 있던 클래스인데 스타일이 없었어요 ---- */
+  td.center, th.center { text-align: center; }
+
+  .sticky-col {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: var(--panel);
+  }
+
+  thead th.sticky-col {
+    z-index: 5;
+    background: var(--panel-soft);
+  }
+
+  .company-cell {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .cell-input {
+    width: 100%;
+    min-width: 70px;
+    height: 32px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text);
+    padding: 0 8px;
+    font-size: 13.5px;
+    font-family: inherit;
+  }
+
+  .cell-input:hover { border-color: var(--line); background: var(--panel-soft); }
+  .cell-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: var(--panel);
+    box-shadow: 0 0 0 3px var(--primary-soft);
+  }
+
+  .cell-input.cell-narrow { min-width: 56px; width: 64px; }
+  .cell-input.company-input { min-width: 140px; font-weight: 700; }
+
+  .readonly-text { color: var(--text); font-size: 13.5px; }
+
+  .mini-gauge { display: flex; align-items: center; gap: 8px; min-width: 92px; }
+  .mini-gauge-track { flex: 1; height: 6px; background: #edf2f7; border-radius: 999px; overflow: hidden; }
+  .mini-gauge-bar { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--primary), #63a4ff); }
+  .mini-gauge-label { font-size: 12px; font-weight: 700; color: var(--muted); width: 34px; text-align: right; }
+
+  .toggle-view {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    background: var(--panel-soft);
+    color: transparent;
+    font-weight: 800;
+    font-size: 13px;
+  }
+
+  .toggle-view.on { background: var(--success-soft); border-color: var(--success); color: var(--success); }
+  .toggle-view.complete.on { background: var(--primary-soft); border-color: var(--primary); color: var(--primary-strong); }
+
+  .upload-toggle {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--panel-soft);
+    color: transparent;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .upload-toggle.available { border-color: #bcd4ff; background: var(--primary-soft); }
+  .upload-toggle.on { background: var(--success-soft); border-color: var(--success); color: var(--success); }
+  .upload-toggle:hover:not(:disabled) { filter: brightness(0.97); }
+  .upload-toggle.disabled,
+  .upload-toggle:disabled { cursor: not-allowed; opacity: 0.5; }
+
+  .folder-link {
+    display: inline-flex;
+    width: 28px;
+    height: 28px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    text-decoration: none;
+    font-size: 15px;
+    background: var(--panel-soft);
+    border: 1px solid var(--line);
+  }
+
+  .folder-link:hover { background: var(--primary-soft); border-color: #bcd4ff; }
+  .folder-link-empty { color: var(--muted); font-size: 13px; }
+
+  .example-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: var(--warning-soft);
+    color: var(--warning);
+    flex: none;
+  }
+
+  .delete-btn {
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--danger);
     font-size: 12px;
     font-weight: 700;
-    padding: 5px 8px;
-    border-radius: 999px;
+    padding: 5px 9px;
+    border-radius: 8px;
+    cursor: pointer;
   }
 
-  .delta.up { background: var(--success-soft); color: var(--success); }
-  .delta.down { background: var(--danger-soft); color: var(--danger); }
+  .delete-btn:hover { background: var(--danger-soft); border-color: var(--danger); }
 
-  .micro-chart {
-    height: 34px;
-    margin-top: 8px;
-  }
+  .empty-row td { text-align: center; padding: 40px 12px; color: var(--muted); font-size: 14px; }
 
-  .micro-chart svg {
-    width: 100%;
-    height: 100%;
-    display: block;
-  }
+  .sortable-th { cursor: pointer; user-select: none; }
+  .sortable-th:hover { color: var(--primary-strong); }
+  .sort-indicator { margin-left: 4px; font-size: 10px; }
 
-  .micro-line {
-    fill: none;
-    stroke-width: 2.2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-  }
-
-  .micro-line.up { stroke: var(--success); }
-  .micro-line.down { stroke: var(--danger); }
+  .col-date { width: 108px; }
+  .col-folder { width: 88px; }
+  .col-region { width: 92px; }
+  .col-company { width: 190px; }
+  .col-session { width: 62px; }
+  .col-doc { width: 76px; }
+  .col-progress { width: 130px; }
+  .col-complete { width: 66px; }
+  .col-flag { width: 84px; }
+  .col-remark { min-width: 170px; }
+  .col-email { width: 200px; }
+  .col-drive-link { width: 60px; }
+  .col-actions { width: 56px; }
 
   .toolbar {
     display: flex;
@@ -777,6 +991,7 @@
 </div>
 
 <datalist id="region-list"></datalist>
+<div class="chart-tooltip" id="chart-tooltip" role="tooltip"></div>
 
 <script>
 (function(){
@@ -1453,12 +1668,99 @@
     });
   }
 
+  // 8개까지는 검증된 순서(파랑/주황/아쿠아/노랑/마젠타/초록/보라/빨강)로 색을 배정하고,
+  // 그 이상은 "기타"로 묶어요 (카테고리가 아무리 늘어도 색이 무한정 생기지 않도록).
+  var REGION_CHART_PALETTE = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948'];
+
+  function buildRegionChartSVG(byRegion){
+    var entries = Object.keys(byRegion).map(function(k){ return { label: k, value: byRegion[k] }; });
+    entries.sort(function(a, b){ return b.value - a.value; });
+    if(entries.length > 8){
+      var head = entries.slice(0, 7);
+      var restSum = entries.slice(7).reduce(function(sum, e){ return sum + e.value; }, 0);
+      entries = head.concat([{ label: '기타', value: restSum }]);
+    }
+    if(entries.length === 0){
+      return '<p class="subtitle" style="margin:4px 0 0;">표시할 권역 데이터가 없어요.</p>';
+    }
+
+    var rowH = 34, topPad = 6, leftPad = 92, rightPad = 46, barH = 20, plotW = 380;
+    var maxVal = Math.max.apply(null, entries.map(function(e){ return e.value; })) || 1;
+    var height = entries.length * rowH + topPad;
+
+    var body = entries.map(function(e, i){
+      var y = topPad + i * rowH;
+      var w = Math.max(2, (e.value / maxVal) * plotW);
+      var color = REGION_CHART_PALETTE[i] || '#94a3b8';
+      var label = escapeHtml(e.label);
+      return '<g class="region-bar-row" data-cat="' + label + '" data-value="' + e.value + '">' +
+        '<text class="region-bar-label" x="' + (leftPad - 10) + '" y="' + (y + barH / 2 + 4) + '" text-anchor="end">' + label + '</text>' +
+        '<rect class="region-bar-shape" x="' + leftPad + '" y="' + y + '" width="' + w + '" height="' + barH + '" rx="4" style="fill:' + color + ';"></rect>' +
+        '<text class="region-bar-value" x="' + (leftPad + w + 8) + '" y="' + (y + barH / 2 + 4) + '">' + e.value + '개사</text>' +
+        '<rect class="region-bar-hit" data-cat="' + label + '" data-value="' + e.value + '" x="' + (leftPad - 4) + '" y="' + (y - 4) + '" width="' + (plotW + rightPad) + '" height="' + (barH + 8) + '"></rect>' +
+      '</g>';
+    }).join('');
+
+    var viewW = leftPad + plotW + rightPad;
+    return '<svg class="region-chart-svg" viewBox="0 0 ' + viewW + ' ' + height + '" preserveAspectRatio="xMidYMid meet">' +
+      '<line class="region-chart-axis" x1="' + leftPad + '" y1="0" x2="' + leftPad + '" y2="' + height + '"></line>' +
+      body +
+    '</svg>';
+  }
+
+  var chartTooltipEl = null;
+  function showChartTooltip(evt, label, value){
+    if(!chartTooltipEl) return;
+    chartTooltipEl.textContent = label + ' · ' + value;
+    chartTooltipEl.style.left = evt.clientX + 'px';
+    chartTooltipEl.style.top = evt.clientY + 'px';
+    chartTooltipEl.classList.add('visible');
+  }
+  function moveChartTooltip(evt){
+    if(!chartTooltipEl) return;
+    chartTooltipEl.style.left = evt.clientX + 'px';
+    chartTooltipEl.style.top = evt.clientY + 'px';
+  }
+  function hideChartTooltip(){
+    if(chartTooltipEl) chartTooltipEl.classList.remove('visible');
+  }
+
+  function bindRegionChartHover(mount){
+    var hits = mount.querySelectorAll('.region-bar-hit');
+    for(var i = 0; i < hits.length; i++){
+      (function(hit){
+        var row = hit.closest('.region-bar-row');
+        hit.addEventListener('pointerenter', function(evt){
+          if(row) row.classList.add('hovered');
+          showChartTooltip(evt, hit.getAttribute('data-cat'), hit.getAttribute('data-value') + '개사');
+        });
+        hit.addEventListener('pointermove', moveChartTooltip);
+        hit.addEventListener('pointerleave', function(){
+          if(row) row.classList.remove('hovered');
+          hideChartTooltip();
+        });
+      })(hits[i]);
+    }
+  }
+
   function renderStats(){
     var s = computeStats(STATE.rows);
     var regionEntries = Object.keys(s.byRegion).map(function(k){ return [k, s.byRegion[k]]; });
     var regionChips = regionEntries.length
       ? regionEntries.map(function(e){ return '<span class="chip">' + escapeHtml(e[0]) + ' ' + e[1] + '</span>'; }).join('')
       : '<span class="chip muted">데이터 없음</span>';
+
+    // 이슈 심각도 미터: 정상 비율은 total에서 나머지 세 상태를 뺀 값이에요 (computeStats가
+    // 따로 안 돌려줘서 여기서만 파생시켜요 — 다른 로직에는 영향 없음).
+    var normalCount = Math.max(0, s.total - s.issueCount - s.alertCount - s.cautionCount);
+    var meterTotal = s.total || 1;
+    var severityMeter = '<div class="severity-meter" title="정상 ' + normalCount + ' · 주의 ' + s.cautionCount + ' · 경고 ' + s.alertCount + ' · 문제 ' + s.issueCount + '">' +
+      '<div class="severity-seg normal" style="width:' + (normalCount / meterTotal * 100) + '%"></div>' +
+      '<div class="severity-seg caution" style="width:' + (s.cautionCount / meterTotal * 100) + '%"></div>' +
+      '<div class="severity-seg alert" style="width:' + (s.alertCount / meterTotal * 100) + '%"></div>' +
+      '<div class="severity-seg issue" style="width:' + (s.issueCount / meterTotal * 100) + '%"></div>' +
+    '</div>';
+
     statsGrid.innerHTML =
       '<div class="stat-card"><div class="stat-label">전체 멘티기업</div><div class="stat-value">' + s.total + '<span class="stat-unit">개사</span></div></div>' +
       '<div class="stat-card"><div class="stat-label">완료</div><div class="stat-value">' + s.completeCount + '<span class="stat-unit">/ ' + s.total + '</span></div>' +
@@ -1468,8 +1770,15 @@
       '<div class="stat-card"><div class="stat-label">서류 제출</div><div class="stat-value">' + s.planCount + '<span class="stat-unit">계획서</span></div>' +
         '<div class="stat-value small">' + s.reportCount + '<span class="stat-unit">보고서</span></div></div>' +
       '<div class="stat-card"><div class="stat-label">이슈 표시</div><div class="stat-value">' + s.issueCount + '<span class="stat-unit">문제</span></div>' +
-        '<div class="stat-value small">' + s.alertCount + '<span class="stat-unit">경고</span> · ' + s.cautionCount + '<span class="stat-unit">주의</span></div></div>' +
-      '<div class="stat-card wide"><div class="stat-label">권역별 현황</div><div class="chip-row">' + regionChips + '</div></div>';
+        '<div class="stat-value small">' + s.alertCount + '<span class="stat-unit">경고</span> · ' + s.cautionCount + '<span class="stat-unit">주의</span></div>' + severityMeter + '</div>' +
+      '<div class="stat-card wide"><div class="stat-label">권역별 현황</div><div class="chip-row">' + regionChips + '</div></div>' +
+      '<div class="stat-card wide"><div class="stat-label">권역별 참여 기업</div><div id="region-chart-mount"></div></div>';
+
+    var mount = document.getElementById('region-chart-mount');
+    if(mount){
+      mount.innerHTML = buildRegionChartSVG(s.byRegion);
+      bindRegionChartHover(mount);
+    }
   }
 
   function buildNavHTML(items, activeKey, dataAttr){
@@ -2256,6 +2565,7 @@
   function init(){
     appRoot = document.getElementById('app');
     statsGrid = document.getElementById('stats-grid');
+    chartTooltipEl = document.getElementById('chart-tooltip');
     rowsBody = document.getElementById('rows-body');
     tableHeadEl = document.getElementById('table-head');
     rowCountLabel = document.getElementById('row-count-label');
