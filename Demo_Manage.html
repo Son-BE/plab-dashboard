@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Platform Manager Demo</title>
+  <style>
+    :root {
+      --bg: #f3f6fb;
+      --panel: #ffffff;
+      --line: #e2e8f0;
+      --primary: #2563eb;
+      --primary-soft: #edf4ff;
+      --text: #122033;
+      --muted: #5e6d82;
+      --success: #1e9d68;
+      --warning: #d79627;
+      --danger: #d95454;
+      --shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+      --sidebar: #0f172a;
+      --sidebar-muted: #94a3b8;
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: "Segoe UI", "Malgun Gothic", sans-serif; }
+    .app { display: flex; min-height: 100vh; }
+    .sidebar { width: 250px; background: var(--sidebar); color: white; padding: 22px 18px; }
+    .brand { font-size: 26px; font-weight: 800; letter-spacing: 0.08em; margin: 6px 8px 26px; }
+    .nav-group { margin-bottom: 22px; }
+    .nav-label { font-size: 11px; color: var(--sidebar-muted); padding: 0 8px 10px; letter-spacing: 0.12em; text-transform: uppercase; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 11px 12px; border-radius: 12px; font-weight: 600; color: #dfeaf8; margin-bottom: 6px; }
+    .nav-item.active { background: rgba(255,255,255,0.07); border: 1px solid rgba(148,163,184,0.15); }
+    .nav-item .icon { width: 8px; height: 8px; border-radius: 50%; background: #7da7ff; box-shadow: 0 0 0 4px rgba(125,167,255,0.18); }
+
+    .content { flex: 1; padding: 26px 28px 32px; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .title-wrap h1 { margin: 0; font-size: 30px; letter-spacing: -0.04em; }
+    .sub { color: var(--muted); font-size: 13px; margin-top: 6px; }
+    .top-actions { display: flex; align-items: center; gap: 12px; }
+    .pill { border: 1px solid #e2e8f0; background: white; border-radius: 10px; padding: 9px 12px; color: var(--muted); font-size: 13px; font-weight: 600; }
+    .btn { border: none; border-radius: 10px; padding: 10px 14px; font-size: 14px; font-weight: 700; cursor: pointer; }
+    .btn.primary { background: var(--primary); color: white; }
+
+    .filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+    .filter { padding: 8px 12px; border-radius: 999px; border: 1px solid #e2e8f0; background: white; color: var(--muted); font-size: 13px; font-weight: 600; }
+    .filter.active { background: var(--primary-soft); color: var(--primary); border-color: #cfe0ff; }
+
+    .stats-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; margin-bottom: 20px; }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); padding: 18px 18px 16px; }
+    .metric-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .metric-head label { color: var(--muted); font-size: 13px; font-weight: 600; }
+    .delta { display: inline-block; font-size: 12px; font-weight: 700; padding: 5px 8px; border-radius: 999px; }
+    .delta.up { background: #eafaf2; color: var(--success); }
+    .delta.down { background: #feeaea; color: var(--danger); }
+    .metric-value { font-size: 30px; font-weight: 800; letter-spacing: -0.05em; margin-bottom: 8px; }
+    .micro-chart { height: 34px; margin-top: 8px; }
+    .micro-chart svg { width: 100%; height: 100%; display: block; }
+    .micro-line { fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+    .micro-line.good { stroke: var(--success); }
+    .micro-line.bad { stroke: var(--danger); }
+
+    .main-grid { display: grid; grid-template-columns: 1.7fr 1.1fr; gap: 18px; margin-bottom: 20px; }
+    .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .panel-title { font-size: 18px; font-weight: 800; letter-spacing: -0.03em; }
+    .link-btn { color: var(--primary); font-size: 13px; font-weight: 700; background: transparent; border: none; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { border-bottom: 1px solid var(--line); text-align: left; padding: 12px 10px; }
+    th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; background: #f8fafc; }
+    .status-badge { display: inline-flex; align-items: center; justify-content: center; padding: 5px 9px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+    .status-badge.normal { background: #eafaf2; color: var(--success); }
+    .status-badge.review { background: #fff4dc; color: var(--warning); }
+    .status-badge.alert { background: #feeaea; color: var(--danger); }
+    .task-box { background: #f8fafc; border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+    .task-box h4 { margin: 0 0 12px; font-size: 15px; }
+    .task-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+    .task-item:last-child { border-bottom: none; }
+    .tag { display: inline-block; background: var(--primary-soft); color: var(--primary); border-radius: 999px; font-size: 11px; font-weight: 700; padding: 5px 8px; }
+    .mini-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+    .mini-card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); padding: 18px; }
+    .mini-card h3 { margin: 0 0 12px; font-size: 17px; }
+    .list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+    .list li { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--line); }
+    .list li:last-child { border-bottom: none; }
+
+    @media (max-width: 1100px) { .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .main-grid, .mini-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 760px) { .app { display: block; } .sidebar { width: 100%; } .content { padding: 18px 16px 24px; } .stats-grid { grid-template-columns: 1fr; } .topbar { display: block; } .top-actions { margin-top: 14px; } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">PLAB</div>
+      <div class="nav-group">
+        <div class="nav-label">운영</div>
+        <div class="nav-item active"><span class="icon"></span> 대시보드</div>
+        <div class="nav-item"><span class="icon"></span> 프로그램</div>
+        <div class="nav-item"><span class="icon"></span> 고객사</div>
+        <div class="nav-item"><span class="icon"></span> 세션</div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-label">관리</div>
+        <div class="nav-item"><span class="icon"></span> 신고/이슈</div>
+        <div class="nav-item"><span class="icon"></span> 사용자 관리</div>
+      </div>
+    </aside>
+
+    <main class="content">
+      <div class="topbar">
+        <div class="title-wrap">
+          <h1>운영사 관리 대시보드</h1>
+          <div class="sub">운영사 관리자 · 전체 프로그램 통합 관리</div>
+        </div>
+        <div class="top-actions">
+          <div class="pill">운영사 담당자 · manager01</div>
+          <button class="btn primary">+ 프로그램 생성</button>
+        </div>
+      </div>
+
+      <div class="filters">
+        <div class="filter active">전체</div>
+        <div class="filter">1회차</div>
+        <div class="filter">2회차</div>
+        <div class="filter">지연</div>
+        <div class="filter">정상</div>
+      </div>
+
+      <section class="stats-grid">
+        <div class="card">
+          <div class="metric-head"><label>진행중 프로그램</label><span class="delta up">+4.1%</span></div>
+          <div class="metric-value">14</div>
+          <div class="micro-chart"><svg viewBox="0 0 100 34" preserveAspectRatio="none"><polyline class="micro-line good" points="0,27 15,23 30,19 45,16 60,12 75,8 90,5 100,3"></polyline></svg></div>
+        </div>
+        <div class="card">
+          <div class="metric-head"><label>참여 고객사</label><span class="delta up">+7.8%</span></div>
+          <div class="metric-value">48</div>
+          <div class="micro-chart"><svg viewBox="0 0 100 34" preserveAspectRatio="none"><polyline class="micro-line good" points="0,28 15,24 30,20 45,17 60,13 75,10 90,6 100,3"></polyline></svg></div>
+        </div>
+        <div class="card">
+          <div class="metric-head"><label>이슈 건수</label><span class="delta down">-2.7%</span></div>
+          <div class="metric-value">9</div>
+          <div class="micro-chart"><svg viewBox="0 0 100 34" preserveAspectRatio="none"><polyline class="micro-line bad" points="0,9 15,12 30,14 45,18 60,20 75,21 90,24 100,22"></polyline></svg></div>
+        </div>
+        <div class="card">
+          <div class="metric-head"><label>자료 제출률</label><span class="delta up">+4.5%</span></div>
+          <div class="metric-value">82%</div>
+          <div class="micro-chart"><svg viewBox="0 0 100 34" preserveAspectRatio="none"><polyline class="micro-line good" points="0,30 15,25 30,22 45,17 60,14 75,9 90,5 100,3"></polyline></svg></div>
+        </div>
+      </section>
+
+      <section class="main-grid">
+        <div class="card">
+          <div class="panel-header">
+            <div class="panel-title">프로그램 목록</div>
+            <button class="link-btn">전체 보기</button>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>프로그램</th>
+                <th>고객사 수</th>
+                <th>진행률</th>
+                <th>상태</th>
+                <th>담당자</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>1회차 지역 멘토링</td><td>18</td><td>76%</td><td><span class="status-badge normal">정상</span></td><td>김민수</td></tr>
+              <tr><td>2회차 기술혁신 프로그램</td><td>14</td><td>68%</td><td><span class="status-badge review">보통</span></td><td>박지현</td></tr>
+              <tr><td>특화형 성장 프로그램</td><td>8</td><td>51%</td><td><span class="status-badge alert">지연</span></td><td>최유진</td></tr>
+              <tr><td>신규 진입 프로그램</td><td>8</td><td>83%</td><td><span class="status-badge normal">정상</span></td><td>오준호</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="task-box">
+          <h4>운영 체크리스트</h4>
+          <div class="task-item"><span>세션 일정 재배치</span><span class="tag">4개</span></div>
+          <div class="task-item"><span>미제출 보고서</span><span class="tag">6개</span></div>
+          <div class="task-item"><span>운영자 승인 대기</span><span class="tag">2개</span></div>
+        </div>
+      </section>
+
+      <section class="mini-grid">
+        <div class="mini-card">
+          <h3>이슈 관리</h3>
+          <ul class="list">
+            <li><span>보고서 누락</span><span class="tag">3건</span></li>
+            <li><span>세션 지연</span><span class="tag">2건</span></li>
+            <li><span>기간 초과</span><span class="tag">1건</span></li>
+          </ul>
+        </div>
+
+        <div class="mini-card">
+          <h3>담당자 현황</h3>
+          <ul class="list">
+            <li><span>수도권 담당자</span><span class="tag">5명</span></li>
+            <li><span>강원권 담당자</span><span class="tag">3명</span></li>
+            <li><span>제주권 담당자</span><span class="tag">2명</span></li>
+          </ul>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
