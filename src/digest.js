@@ -56,7 +56,7 @@ function buildOverdueList() {
   var sessionCount = data.sessionCount;
   var list = [];
   data.rows.forEach(function (r) {
-    var flag = computeAutoFlagServer(r.date, r.complete);
+    var flag = r.flagOverride || computeAutoFlagServer(r.date, r.complete);
     if (flag === 'none') return;
     list.push({
       region: r.region || '미지정',
