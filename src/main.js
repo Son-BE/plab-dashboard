@@ -4,6 +4,12 @@ function doGet(e) {
   if (!user) {
     return respond({ error: 'auth', message: '아이디 또는 비밀번호가 올바르지 않아요.' });
   }
+  if (params.action === 'getLog') {
+    if (user.role !== 'admin') {
+      return respond({ ok: false, error: 'forbidden', message: '관리자만 볼 수 있어요.' });
+    }
+    return respond({ ok: true, log: readLog(200) });
+  }
   var data = readAll();
   var rows = data.rows;
   if (user.region && user.region !== 'all') {
@@ -29,11 +35,11 @@ function doPost(e) {
     }
 
     if (body.action === 'upsert' && body.row) {
-      upsertRow(body.row);
+      upsertRow(body.row, user);
       return respond({ ok: true });
     }
     if (body.action === 'delete' && body.id) {
-      deleteRow(body.id);
+      deleteRow(body.id, user);
       return respond({ ok: true });
     }
     if (body.action === 'syncFromDrive') {
@@ -42,7 +48,7 @@ function doPost(e) {
       return respond({ ok: true, result: result, lastSync: getLastSyncInfo() });
     }
     if (body.action === 'setSessionCount') {
-      return respond(setSessionCountConfig(body.value));
+      return respond(setSessionCountConfig(body.value, user));
     }
     return respond({ ok: false, error: 'unknown action' });
   } catch (err) {

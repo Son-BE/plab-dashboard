@@ -1,4 +1,6 @@
 var SHEET_NAME = 'rows';
+var LOG_SHEET_NAME = 'log';
+var LOG_HEADERS = ['at', 'username', 'role', 'action', 'rowId', 'company', 'detail'];
 var MAX_SESSIONS = 12;
 var DEFAULT_ROUND = '1회차';
 var CURRENT_SYNC_ROUND = '1회차';
@@ -41,12 +43,14 @@ function getSessionCount() {
   return v;
 }
 
-function setSessionCountConfig(n) {
+function setSessionCountConfig(n, user) {
   n = Number(n);
   if (!n || n < 1 || n > MAX_SESSIONS || Math.floor(n) !== n) {
     return { ok: false, error: 'invalid', message: '세션 수는 1~' + MAX_SESSIONS + ' 사이의 정수여야 해요.' };
   }
+  var old = getSessionCount();
   PropertiesService.getScriptProperties().setProperty('SESSION_COUNT', String(n));
+  if (user) appendLog(user, 'setSessionCount', '', '', '세션 수 ' + old + '→' + n);
   return { ok: true, sessionCount: n };
 }
 

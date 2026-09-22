@@ -481,36 +481,6 @@
   .severity-seg.alert,
   .severity-seg.issue { background: var(--danger); }
 
-  /* 권역별 참여 기업 차트 */
-  .region-chart-svg { display: block; width: 100%; height: auto; overflow: visible; }
-  .region-chart-axis { stroke: var(--line); stroke-width: 1; }
-  .region-bar-label { fill: var(--text); font-size: 12.5px; font-weight: 600; }
-  .region-bar-value { fill: var(--muted); font-size: 12.5px; font-weight: 700; }
-  .region-bar-shape { transition: filter 0.12s ease; }
-  .region-bar-hit { fill: transparent; cursor: pointer; }
-  .region-bar-row.hovered .region-bar-shape { filter: brightness(1.08); }
-  .region-bar-row.hovered .region-bar-value { font-weight: 800; }
-
-  .chart-tooltip {
-    position: fixed;
-    z-index: 60;
-    background: #101828;
-    color: #fff;
-    border-radius: 8px;
-    padding: 7px 10px;
-    font-size: 12px;
-    line-height: 1.5;
-    font-weight: 700;
-    pointer-events: none;
-    opacity: 0;
-    transform: translate(-50%, calc(-100% - 10px));
-    transition: opacity 0.1s ease;
-    box-shadow: 0 8px 20px rgba(16, 24, 40, 0.25);
-    white-space: nowrap;
-  }
-
-  .chart-tooltip.visible { opacity: 1; }
-
   /* ---- 표 셀 보정: 기존 렌더 함수들이 이미 내보내고 있던 클래스인데 스타일이 없었어요 ---- */
   td.center, th.center { text-align: center; }
 
@@ -955,6 +925,7 @@
     <button class="btn btn-ghost" id="export-excel-btn" type="button" hidden>📊 엑셀로 내보내기</button>
     <button class="btn btn-ghost" id="session-settings-btn" type="button" hidden>⚙️ 회차 설정</button>
     <button class="btn btn-ghost" id="step-open-date-btn" type="button" hidden>📅 Step 설정</button>
+    <button class="btn btn-ghost" id="change-log-btn" type="button" hidden>📜 변경 이력</button>
     <button class="btn btn-ghost" id="clear-examples-btn" type="button" hidden>예시 데이터 지우기</button>
   </section>
 
@@ -979,6 +950,32 @@
       <input id="step-open-date-input" type="date">
       <button id="step-open-date-save-btn" class="btn btn-primary" type="button">저장</button>
       <button id="step-open-date-cancel-btn" class="btn btn-ghost" type="button">취소</button>
+    </div>
+  </section>
+
+  <section class="settings-card" id="change-log-banner" hidden>
+    <div class="settings-header">
+      <h3 class="settings-title">변경 이력</h3>
+      <span class="settings-badge">관리자</span>
+    </div>
+    <p class="subtitle" style="margin:0 0 12px;">최근 200건까지 최신순으로 보여줘요. 누가·언제·무엇을 바꿨는지 확인할 수 있어요.</p>
+    <div class="table-wrap" style="max-height:340px;">
+      <table>
+        <thead>
+          <tr>
+            <th class="col-date">시간</th>
+            <th class="col-region">사용자</th>
+            <th class="col-doc">작업</th>
+            <th class="col-company">기업명</th>
+            <th class="col-remark">내용</th>
+          </tr>
+        </thead>
+        <tbody id="change-log-body"><tr class="empty-row"><td colspan="5">불러오는 중…</td></tr></tbody>
+      </table>
+    </div>
+    <div class="settings-actions">
+      <button id="change-log-refresh-btn" class="btn btn-ghost" type="button">새로고침</button>
+      <button id="change-log-close-btn" class="btn btn-ghost" type="button">닫기</button>
     </div>
   </section>
 
@@ -1018,7 +1015,6 @@
 </div>
 
 <datalist id="region-list"></datalist>
-<div class="chart-tooltip" id="chart-tooltip" role="tooltip"></div>
 
 <script>
 (function(){
@@ -1090,7 +1086,7 @@
       driveSyncBtn, regionSidebarSection, loginScreen, loginForm, loginUsername, loginPassword, loginError, loginSubmit,
       roleBadge, logoutBtn, lastSyncLabel, lastDigestLabel, exportExcelBtn, sessionSettingsBtn, stepOpenDateBtn, sessionCountBanner, sessionCountInput,
       sessionCountSaveBtn, sessionCountCancelBtn, sessionCountCurrentEl, sessionCountMaxEl, stepOpenDateBanner, stepOpenDateInput,
-      stepOpenDateSaveBtn, stepOpenDateCancelBtn;
+      stepOpenDateSaveBtn, stepOpenDateCancelBtn, changeLogBtn, changeLogBanner, changeLogBody, changeLogRefreshBtn, changeLogCloseBtn;
 
   function roleLabel(){
     if(AUTH.role === 'admin') return '관리자 계정';
@@ -1695,81 +1691,6 @@
     });
   }
 
-  // 8개까지는 검증된 순서(파랑/주황/아쿠아/노랑/마젠타/초록/보라/빨강)로 색을 배정하고,
-  // 그 이상은 "기타"로 묶어요 (카테고리가 아무리 늘어도 색이 무한정 생기지 않도록).
-  var REGION_CHART_PALETTE = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948'];
-
-  function buildRegionChartSVG(byRegion){
-    var entries = Object.keys(byRegion).map(function(k){ return { label: k, value: byRegion[k] }; });
-    entries.sort(function(a, b){ return b.value - a.value; });
-    if(entries.length > 8){
-      var head = entries.slice(0, 7);
-      var restSum = entries.slice(7).reduce(function(sum, e){ return sum + e.value; }, 0);
-      entries = head.concat([{ label: '기타', value: restSum }]);
-    }
-    if(entries.length === 0){
-      return '<p class="subtitle" style="margin:4px 0 0;">표시할 권역 데이터가 없어요.</p>';
-    }
-
-    var rowH = 34, topPad = 6, leftPad = 92, rightPad = 46, barH = 20, plotW = 380;
-    var maxVal = Math.max.apply(null, entries.map(function(e){ return e.value; })) || 1;
-    var height = entries.length * rowH + topPad;
-
-    var body = entries.map(function(e, i){
-      var y = topPad + i * rowH;
-      var w = Math.max(2, (e.value / maxVal) * plotW);
-      var color = REGION_CHART_PALETTE[i] || '#94a3b8';
-      var label = escapeHtml(e.label);
-      return '<g class="region-bar-row" data-cat="' + label + '" data-value="' + e.value + '">' +
-        '<text class="region-bar-label" x="' + (leftPad - 10) + '" y="' + (y + barH / 2 + 4) + '" text-anchor="end">' + label + '</text>' +
-        '<rect class="region-bar-shape" x="' + leftPad + '" y="' + y + '" width="' + w + '" height="' + barH + '" rx="4" style="fill:' + color + ';"></rect>' +
-        '<text class="region-bar-value" x="' + (leftPad + w + 8) + '" y="' + (y + barH / 2 + 4) + '">' + e.value + '개사</text>' +
-        '<rect class="region-bar-hit" data-cat="' + label + '" data-value="' + e.value + '" x="' + (leftPad - 4) + '" y="' + (y - 4) + '" width="' + (plotW + rightPad) + '" height="' + (barH + 8) + '"></rect>' +
-      '</g>';
-    }).join('');
-
-    var viewW = leftPad + plotW + rightPad;
-    return '<svg class="region-chart-svg" viewBox="0 0 ' + viewW + ' ' + height + '" preserveAspectRatio="xMidYMid meet">' +
-      '<line class="region-chart-axis" x1="' + leftPad + '" y1="0" x2="' + leftPad + '" y2="' + height + '"></line>' +
-      body +
-    '</svg>';
-  }
-
-  var chartTooltipEl = null;
-  function showChartTooltip(evt, label, value){
-    if(!chartTooltipEl) return;
-    chartTooltipEl.textContent = label + ' · ' + value;
-    chartTooltipEl.style.left = evt.clientX + 'px';
-    chartTooltipEl.style.top = evt.clientY + 'px';
-    chartTooltipEl.classList.add('visible');
-  }
-  function moveChartTooltip(evt){
-    if(!chartTooltipEl) return;
-    chartTooltipEl.style.left = evt.clientX + 'px';
-    chartTooltipEl.style.top = evt.clientY + 'px';
-  }
-  function hideChartTooltip(){
-    if(chartTooltipEl) chartTooltipEl.classList.remove('visible');
-  }
-
-  function bindRegionChartHover(mount){
-    var hits = mount.querySelectorAll('.region-bar-hit');
-    for(var i = 0; i < hits.length; i++){
-      (function(hit){
-        var row = hit.closest('.region-bar-row');
-        hit.addEventListener('pointerenter', function(evt){
-          if(row) row.classList.add('hovered');
-          showChartTooltip(evt, hit.getAttribute('data-cat'), hit.getAttribute('data-value') + '개사');
-        });
-        hit.addEventListener('pointermove', moveChartTooltip);
-        hit.addEventListener('pointerleave', function(){
-          if(row) row.classList.remove('hovered');
-          hideChartTooltip();
-        });
-      })(hits[i]);
-    }
-  }
-
   function renderStats(){
     var s = computeStats(STATE.rows);
     var regionEntries = Object.keys(s.byRegion).map(function(k){ return [k, s.byRegion[k]]; });
@@ -1798,14 +1719,7 @@
         '<div class="stat-value small">' + s.reportCount + '<span class="stat-unit">보고서</span></div></div>' +
       '<div class="stat-card"><div class="stat-label">이슈 표시</div><div class="stat-value">' + s.issueCount + '<span class="stat-unit">문제</span></div>' +
         '<div class="stat-value small">' + s.alertCount + '<span class="stat-unit">경고</span> · ' + s.cautionCount + '<span class="stat-unit">주의</span></div>' + severityMeter + '</div>' +
-      '<div class="stat-card wide"><div class="stat-label">권역별 현황</div><div class="chip-row">' + regionChips + '</div></div>' +
-      '<div class="stat-card wide"><div class="stat-label">권역별 참여 기업</div><div id="region-chart-mount"></div></div>';
-
-    var mount = document.getElementById('region-chart-mount');
-    if(mount){
-      mount.innerHTML = buildRegionChartSVG(s.byRegion);
-      bindRegionChartHover(mount);
-    }
+      '<div class="stat-card wide"><div class="stat-label">권역별 현황</div><div class="chip-row">' + regionChips + '</div></div>';
   }
 
   // "즉시 처리 필요"·"회차별 참여 현황" — 전부 STATE.rows에서 바로 계산하는 실데이터예요.
@@ -1997,6 +1911,7 @@
     driveSyncBtn.hidden = !showCollectionControls;
     if(sessionSettingsBtn) sessionSettingsBtn.hidden = !showCollectionControls;
     if(stepOpenDateBtn) stepOpenDateBtn.hidden = !admin;
+    if(changeLogBtn) changeLogBtn.hidden = !admin;
     // 권역 공유 계정이 아직 기업을 안 골랐으면(uploadGated), 엑셀 내보내기도 잠가둬요.
     // 안 그러면 고르기 전 상태에서 눌러서 권역 전체 데이터가 그대로 새어나갈 수 있어요.
     if(exportExcelBtn) exportExcelBtn.hidden = uploadGated;
@@ -2128,6 +2043,55 @@
       // 먼저 갱신해둬요.
       STATE.sessionCount = (data && data.sessionCount) || STATE.sessionCount || 6;
       return Array.isArray(data.rows) ? data.rows.map(normalizeRow) : [];
+    });
+  }
+
+  var ACTION_LABELS_KO = { upsert: '수정/등록', delete: '삭제', setUpload: '업로드 체크', setSessionCount: '세션 수 변경' };
+
+  function formatLogTime(iso){
+    var d = new Date(iso);
+    if(isNaN(d.getTime())) return String(iso || '');
+    var hh = String(d.getHours()).padStart(2, '0');
+    var mi = String(d.getMinutes()).padStart(2, '0');
+    return (d.getMonth() + 1) + '월 ' + d.getDate() + '일 ' + hh + ':' + mi;
+  }
+
+  function renderChangeLog(entries){
+    if(!changeLogBody) return;
+    if(!entries || !entries.length){
+      changeLogBody.innerHTML = '<tr class="empty-row"><td colspan="5">아직 기록된 변경 이력이 없어요.</td></tr>';
+      return;
+    }
+    changeLogBody.innerHTML = entries.map(function(e){
+      return '<tr>' +
+        '<td>' + escapeHtml(formatLogTime(e.at)) + '</td>' +
+        '<td>' + escapeHtml(e.username || '') + '</td>' +
+        '<td>' + escapeHtml(ACTION_LABELS_KO[e.action] || e.action || '') + '</td>' +
+        '<td>' + escapeHtml(e.company || '') + '</td>' +
+        '<td>' + escapeHtml(e.detail || '') + '</td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  // 변경 이력 배너를 열 때·새로고침 버튼을 누를 때 호출돼요. fetchRows()와 같은 GET
+  // 캐시버스팅 패턴에 action=getLog만 붙여요 (관리자만 서버에서 응답을 내려줘요).
+  function fetchLog(){
+    if(!changeLogBody || !apiUrl) return;
+    changeLogBody.innerHTML = '<tr class="empty-row"><td colspan="5">불러오는 중…</td></tr>';
+    var bustUrl = apiUrl + (apiUrl.indexOf('?') === -1 ? '?' : '&') + '_=' + Date.now() +
+      '&u=' + encodeURIComponent(AUTH.u || '') + '&p=' + encodeURIComponent(AUTH.p || '') + '&action=getLog';
+    return fetch(bustUrl, { method:'GET', cache:'no-store' }).then(function(res){
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    }).then(function(data){
+      if(!data || data.ok === false){
+        changeLogBody.innerHTML = '<tr class="empty-row"><td colspan="5">' + escapeHtml((data && data.message) || '불러오지 못했어요.') + '</td></tr>';
+        return;
+      }
+      renderChangeLog(data.log || []);
+    }).catch(function(err){
+      console.error(err);
+      changeLogBody.innerHTML = '<tr class="empty-row"><td colspan="5">불러오는 중 문제가 생겼어요.</td></tr>';
     });
   }
 
@@ -2510,12 +2474,25 @@
       if(sessionCountInput) sessionCountInput.value = STATE.sessionCount;
       sessionCountBanner.hidden = !sessionCountBanner.hidden;
       if(stepOpenDateBanner) stepOpenDateBanner.hidden = true;
+      if(changeLogBanner) changeLogBanner.hidden = true;
     });
     if(stepOpenDateBtn) stepOpenDateBtn.addEventListener('click', function(){
       if(!isAdmin()) return;
       if(stepOpenDateInput) stepOpenDateInput.value = getStep2OpenDate();
       if(stepOpenDateBanner) stepOpenDateBanner.hidden = !stepOpenDateBanner.hidden;
       if(sessionCountBanner) sessionCountBanner.hidden = true;
+      if(changeLogBanner) changeLogBanner.hidden = true;
+    });
+    if(changeLogBtn) changeLogBtn.addEventListener('click', function(){
+      if(!isAdmin() || !changeLogBanner) return;
+      changeLogBanner.hidden = !changeLogBanner.hidden;
+      if(sessionCountBanner) sessionCountBanner.hidden = true;
+      if(stepOpenDateBanner) stepOpenDateBanner.hidden = true;
+      if(!changeLogBanner.hidden) fetchLog();
+    });
+    if(changeLogRefreshBtn) changeLogRefreshBtn.addEventListener('click', fetchLog);
+    if(changeLogCloseBtn) changeLogCloseBtn.addEventListener('click', function(){
+      if(changeLogBanner) changeLogBanner.hidden = true;
     });
     if(sessionCountCancelBtn) sessionCountCancelBtn.addEventListener('click', function(){
       sessionCountBanner.hidden = true;
@@ -2621,7 +2598,6 @@
     appRoot = document.getElementById('app');
     statsGrid = document.getElementById('stats-grid');
     quickPanelsEl = document.getElementById('quick-panels');
-    chartTooltipEl = document.getElementById('chart-tooltip');
     rowsBody = document.getElementById('rows-body');
     tableHeadEl = document.getElementById('table-head');
     rowCountLabel = document.getElementById('row-count-label');
@@ -2656,6 +2632,11 @@
     stepOpenDateInput = document.getElementById('step-open-date-input');
     stepOpenDateSaveBtn = document.getElementById('step-open-date-save-btn');
     stepOpenDateCancelBtn = document.getElementById('step-open-date-cancel-btn');
+    changeLogBtn = document.getElementById('change-log-btn');
+    changeLogBanner = document.getElementById('change-log-banner');
+    changeLogBody = document.getElementById('change-log-body');
+    changeLogRefreshBtn = document.getElementById('change-log-refresh-btn');
+    changeLogCloseBtn = document.getElementById('change-log-close-btn');
     if(sessionCountInput) sessionCountInput.max = String(MAX_SESSIONS);
     if(sessionCountMaxEl) sessionCountMaxEl.textContent = String(MAX_SESSIONS);
     if(stepOpenDateInput) stepOpenDateInput.value = getStep2OpenDate();
