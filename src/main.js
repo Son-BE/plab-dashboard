@@ -15,7 +15,7 @@ function doGet(e) {
   if (user.region && user.region !== 'all') {
     rows = rows.filter(function (r) { return (r.region || '미지정') === user.region; });
   }
-  return respond({ rows: rows, role: user.role, region: user.region, lastSync: getLastSyncInfo(), sessionCount: data.sessionCount, lastDigest: getLastDigestInfo() });
+  return respond({ rows: rows, role: user.role, region: user.region, lastSync: getLastSyncInfo(), sessionCount: data.sessionCount, lastDigest: getLastDigestInfo(), flagThresholds: getFlagThresholds() });
 }
 
 function doPost(e) {
@@ -49,6 +49,9 @@ function doPost(e) {
     }
     if (body.action === 'setSessionCount') {
       return respond(setSessionCountConfig(body.value, user));
+    }
+    if (body.action === 'setFlagThresholds') {
+      return respond(setFlagThresholds(body.value, user));
     }
     return respond({ ok: false, error: 'unknown action' });
   } catch (err) {

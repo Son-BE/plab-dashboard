@@ -34,9 +34,10 @@ function computeAutoFlagServer(dateStr, complete) {
   if (complete) return 'none';
   var days = daysSinceServer(dateStr);
   if (days === null) return 'none';
-  for (var i = 0; i < FLAG_DAY_THRESHOLDS.length; i++) {
-    if (days >= FLAG_DAY_THRESHOLDS[i].days) return FLAG_DAY_THRESHOLDS[i].flag;
-  }
+  var t = getFlagThresholds();
+  if (days >= t.issue) return 'issue';
+  if (days >= t.alert) return 'alert';
+  if (days >= t.caution) return 'caution';
   return 'none';
 }
 

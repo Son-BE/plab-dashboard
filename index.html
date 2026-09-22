@@ -926,6 +926,7 @@
     <button class="btn btn-ghost" id="session-settings-btn" type="button" hidden>⚙️ 회차 설정</button>
     <button class="btn btn-ghost" id="step-open-date-btn" type="button" hidden>📅 Step 설정</button>
     <button class="btn btn-ghost" id="change-log-btn" type="button" hidden>📜 변경 이력</button>
+    <button class="btn btn-ghost" id="flag-thresholds-btn" type="button" hidden>⏱️ 지연 기준일 설정</button>
     <button class="btn btn-ghost" id="clear-examples-btn" type="button" hidden>예시 데이터 지우기</button>
   </section>
 
@@ -950,6 +951,26 @@
       <input id="step-open-date-input" type="date">
       <button id="step-open-date-save-btn" class="btn btn-primary" type="button">저장</button>
       <button id="step-open-date-cancel-btn" class="btn btn-ghost" type="button">취소</button>
+    </div>
+  </section>
+
+  <section class="settings-card" id="flag-thresholds-banner" hidden>
+    <div class="settings-header">
+      <h3 class="settings-title">지연 기준일 설정</h3>
+      <span class="settings-badge">관리자</span>
+    </div>
+    <div class="settings-actions" style="align-items:flex-end;">
+      <label style="display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted);">주의(일)
+        <input id="flag-caution-input" type="number" min="1" step="1" style="width:80px;">
+      </label>
+      <label style="display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted);">경고(일)
+        <input id="flag-alert-input" type="number" min="1" step="1" style="width:80px;">
+      </label>
+      <label style="display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted);">문제(일)
+        <input id="flag-issue-input" type="number" min="1" step="1" style="width:80px;">
+      </label>
+      <button id="flag-thresholds-save-btn" class="btn btn-primary" type="button">저장</button>
+      <button id="flag-thresholds-cancel-btn" class="btn btn-ghost" type="button">취소</button>
     </div>
   </section>
 
@@ -1066,7 +1087,7 @@
   }
   var viewMode = 'collect'; // 'collect'(취합현황) | 'upload'(업로드현황)
 
-  var STATE = { rows: [], lastSync: null, lastDigest: null, sessionCount: 6 };
+  var STATE = { rows: [], lastSync: null, lastDigest: null, sessionCount: 6, flagThresholds: { caution:3, alert:5, issue:7 } };
   var filters = { q:'', region:'all', status:'all', flag:'all', round: DEFAULT_ROUND };
   var apiUrl = null;
   var pendingSaves = {};
@@ -1086,7 +1107,8 @@
       driveSyncBtn, regionSidebarSection, loginScreen, loginForm, loginUsername, loginPassword, loginError, loginSubmit,
       roleBadge, logoutBtn, lastSyncLabel, lastDigestLabel, exportExcelBtn, sessionSettingsBtn, stepOpenDateBtn, sessionCountBanner, sessionCountInput,
       sessionCountSaveBtn, sessionCountCancelBtn, sessionCountCurrentEl, sessionCountMaxEl, stepOpenDateBanner, stepOpenDateInput,
-      stepOpenDateSaveBtn, stepOpenDateCancelBtn, changeLogBtn, changeLogBanner, changeLogBody, changeLogRefreshBtn, changeLogCloseBtn;
+      stepOpenDateSaveBtn, stepOpenDateCancelBtn, changeLogBtn, changeLogBanner, changeLogBody, changeLogRefreshBtn, changeLogCloseBtn,
+      flagThresholdsBtn, flagThresholdsBanner, flagCautionInput, flagAlertInput, flagIssueInput, flagThresholdsSaveBtn, flagThresholdsCancelBtn;
 
   function roleLabel(){
     if(AUTH.role === 'admin') return '관리자 계정';
@@ -1185,20 +1207,16 @@
   }
 
   // 이슈 표시는 이제 관리자가 직접 고르지 않고, 협약일자로부터 지난 일수를 기준으로
-  // 자동으로 매겨요: 3일↑ 주의, 5일↑ 경고, 7일↑ 문제. 이미 완료된 기업이거나 협약일자가
-  // 없어서 계산할 수 없는 기업은 정상으로 둬요 (협약일자 없음은 비고란에 따로 안내해요).
-  var FLAG_DAY_THRESHOLDS = [
-    { days: 7, flag: 'issue' },
-    { days: 5, flag: 'alert' },
-    { days: 3, flag: 'caution' }
-  ];
+  // 자동으로 매겨요(기준일은 관리자가 설정 가능 — STATE.flagThresholds). 이미 완료된
+  // 기업이거나 협약일자가 없어서 계산할 수 없는 기업은 정상으로 둬요.
   function computeAutoFlag(dateStr, complete){
     if(complete) return 'none';
     var days = daysSince(dateStr);
     if(days === null) return 'none';
-    for(var i = 0; i < FLAG_DAY_THRESHOLDS.length; i++){
-      if(days >= FLAG_DAY_THRESHOLDS[i].days) return FLAG_DAY_THRESHOLDS[i].flag;
-    }
+    var t = STATE.flagThresholds;
+    if(days >= t.issue) return 'issue';
+    if(days >= t.alert) return 'alert';
+    if(days >= t.caution) return 'caution';
     return 'none';
   }
 
@@ -1912,6 +1930,7 @@
     if(sessionSettingsBtn) sessionSettingsBtn.hidden = !showCollectionControls;
     if(stepOpenDateBtn) stepOpenDateBtn.hidden = !admin;
     if(changeLogBtn) changeLogBtn.hidden = !admin;
+    if(flagThresholdsBtn) flagThresholdsBtn.hidden = !admin;
     // 권역 공유 계정이 아직 기업을 안 골랐으면(uploadGated), 엑셀 내보내기도 잠가둬요.
     // 안 그러면 고르기 전 상태에서 눌러서 권역 전체 데이터가 그대로 새어나갈 수 있어요.
     if(exportExcelBtn) exportExcelBtn.hidden = uploadGated;
@@ -2042,6 +2061,9 @@
       // sessionCount는 normalizeRow가 세션 배열 길이를 결정할 때 참조하니, map(normalizeRow)보다
       // 먼저 갱신해둬요.
       STATE.sessionCount = (data && data.sessionCount) || STATE.sessionCount || 6;
+      // flagThresholds는 normalizeRow(아래에서 바로 호출)가 computeAutoFlag를 통해 참조하니,
+      // map(normalizeRow)보다 먼저 갱신해둬요 (sessionCount와 같은 이유).
+      if(data && data.flagThresholds) STATE.flagThresholds = data.flagThresholds;
       return Array.isArray(data.rows) ? data.rows.map(normalizeRow) : [];
     });
   }
@@ -2469,30 +2491,83 @@
       });
     });
 
+    // 관리자 설정 배너(회차 설정/Step 설정/변경 이력/지연 기준일)는 한 번에 하나만 열려있게
+    // 나머지를 같이 닫아줘요.
+    function closeOtherAdminBanners(exceptBanner){
+      [sessionCountBanner, stepOpenDateBanner, changeLogBanner, flagThresholdsBanner].forEach(function(b){
+        if(b && b !== exceptBanner) b.hidden = true;
+      });
+    }
     if(sessionSettingsBtn) sessionSettingsBtn.addEventListener('click', function(){
       if(sessionCountCurrentEl) sessionCountCurrentEl.textContent = String(STATE.sessionCount);
       if(sessionCountInput) sessionCountInput.value = STATE.sessionCount;
       sessionCountBanner.hidden = !sessionCountBanner.hidden;
-      if(stepOpenDateBanner) stepOpenDateBanner.hidden = true;
-      if(changeLogBanner) changeLogBanner.hidden = true;
+      closeOtherAdminBanners(sessionCountBanner);
     });
     if(stepOpenDateBtn) stepOpenDateBtn.addEventListener('click', function(){
       if(!isAdmin()) return;
       if(stepOpenDateInput) stepOpenDateInput.value = getStep2OpenDate();
       if(stepOpenDateBanner) stepOpenDateBanner.hidden = !stepOpenDateBanner.hidden;
-      if(sessionCountBanner) sessionCountBanner.hidden = true;
-      if(changeLogBanner) changeLogBanner.hidden = true;
+      closeOtherAdminBanners(stepOpenDateBanner);
     });
     if(changeLogBtn) changeLogBtn.addEventListener('click', function(){
       if(!isAdmin() || !changeLogBanner) return;
       changeLogBanner.hidden = !changeLogBanner.hidden;
-      if(sessionCountBanner) sessionCountBanner.hidden = true;
-      if(stepOpenDateBanner) stepOpenDateBanner.hidden = true;
+      closeOtherAdminBanners(changeLogBanner);
       if(!changeLogBanner.hidden) fetchLog();
     });
     if(changeLogRefreshBtn) changeLogRefreshBtn.addEventListener('click', fetchLog);
     if(changeLogCloseBtn) changeLogCloseBtn.addEventListener('click', function(){
       if(changeLogBanner) changeLogBanner.hidden = true;
+    });
+    if(flagThresholdsBtn) flagThresholdsBtn.addEventListener('click', function(){
+      if(!isAdmin() || !flagThresholdsBanner) return;
+      if(flagCautionInput) flagCautionInput.value = STATE.flagThresholds.caution;
+      if(flagAlertInput) flagAlertInput.value = STATE.flagThresholds.alert;
+      if(flagIssueInput) flagIssueInput.value = STATE.flagThresholds.issue;
+      flagThresholdsBanner.hidden = !flagThresholdsBanner.hidden;
+      closeOtherAdminBanners(flagThresholdsBanner);
+    });
+    if(flagThresholdsCancelBtn) flagThresholdsCancelBtn.addEventListener('click', function(){
+      if(flagThresholdsBanner) flagThresholdsBanner.hidden = true;
+    });
+    if(flagThresholdsSaveBtn) flagThresholdsSaveBtn.addEventListener('click', function(){
+      if(!isAdmin()) return;
+      var caution = parseInt(flagCautionInput.value, 10);
+      var alertDays = parseInt(flagAlertInput.value, 10);
+      var issue = parseInt(flagIssueInput.value, 10);
+      if(!caution || !alertDays || !issue || caution < 1 || !(caution < alertDays && alertDays < issue)){
+        alert('주의 < 경고 < 문제 순서로, 1 이상의 정수로 입력해주세요.');
+        return;
+      }
+      flagThresholdsSaveBtn.disabled = true;
+      fetch(apiUrl, {
+        method:'POST',
+        cache:'no-store',
+        headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action:'setFlagThresholds', value:{ caution:caution, alert:alertDays, issue:issue }, u:AUTH.u, p:AUTH.p })
+      }).then(function(res){
+          if(!res.ok) throw new Error('HTTP ' + res.status);
+          return res.json();
+        })
+        .then(function(data){
+          if(!data || data.ok === false){
+            alert((data && data.message) || '지연 기준일 저장에 실패했어요.');
+            return;
+          }
+          STATE.flagThresholds = data.flagThresholds;
+          flagThresholdsBanner.hidden = true;
+          // 기준일이 바뀌면 모든 행의 이슈 표시가 다시 계산돼야 하니 새로고침해요
+          // (회차 수 저장과 같은 패턴 — pollOnce가 normalizeRow를 다시 돌려요).
+          return pollOnce(true);
+        })
+        .catch(function(err){
+          console.error(err);
+          alert('지연 기준일 저장 중 문제가 생겼어요.');
+        })
+        .finally(function(){
+          flagThresholdsSaveBtn.disabled = false;
+        });
     });
     if(sessionCountCancelBtn) sessionCountCancelBtn.addEventListener('click', function(){
       sessionCountBanner.hidden = true;
@@ -2637,6 +2712,13 @@
     changeLogBody = document.getElementById('change-log-body');
     changeLogRefreshBtn = document.getElementById('change-log-refresh-btn');
     changeLogCloseBtn = document.getElementById('change-log-close-btn');
+    flagThresholdsBtn = document.getElementById('flag-thresholds-btn');
+    flagThresholdsBanner = document.getElementById('flag-thresholds-banner');
+    flagCautionInput = document.getElementById('flag-caution-input');
+    flagAlertInput = document.getElementById('flag-alert-input');
+    flagIssueInput = document.getElementById('flag-issue-input');
+    flagThresholdsSaveBtn = document.getElementById('flag-thresholds-save-btn');
+    flagThresholdsCancelBtn = document.getElementById('flag-thresholds-cancel-btn');
     if(sessionCountInput) sessionCountInput.max = String(MAX_SESSIONS);
     if(sessionCountMaxEl) sessionCountMaxEl.textContent = String(MAX_SESSIONS);
     if(stepOpenDateInput) stepOpenDateInput.value = getStep2OpenDate();

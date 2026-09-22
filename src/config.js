@@ -29,11 +29,7 @@ var USERS = [
   { username: 'Jccei_ai', role: 'viewer', region: '제주권' }
 ];
 
-var FLAG_DAY_THRESHOLDS = [
-  { days: 7, flag: 'issue' },
-  { days: 5, flag: 'alert' },
-  { days: 3, flag: 'caution' }
-];
+var DEFAULT_FLAG_THRESHOLDS = { caution: 3, alert: 5, issue: 7 };
 var FLAG_LABELS_KO = { caution: '주의', alert: '경고', issue: '문제' };
 var COMPANY_REMINDER_FLAGS = ['alert', 'issue'];
 
@@ -52,6 +48,36 @@ function setSessionCountConfig(n, user) {
   PropertiesService.getScriptProperties().setProperty('SESSION_COUNT', String(n));
   if (user) appendLog(user, 'setSessionCount', '', '', '세션 수 ' + old + '→' + n);
   return { ok: true, sessionCount: n };
+}
+
+function isPosInt(n) { return typeof n === 'number' && n > 0 && Math.floor(n) === n; }
+
+function isValidFlagThresholds(v) {
+  return !!v && isPosInt(v.caution) && isPosInt(v.alert) && isPosInt(v.issue) &&
+    v.caution < v.alert && v.alert < v.issue;
+}
+
+function getFlagThresholds() {
+  var raw = PropertiesService.getScriptProperties().getProperty('FLAG_THRESHOLDS');
+  if (!raw) return DEFAULT_FLAG_THRESHOLDS;
+  try {
+    var v = JSON.parse(raw);
+    if (isValidFlagThresholds(v)) return v;
+  } catch (err) {}
+  return DEFAULT_FLAG_THRESHOLDS;
+}
+
+function setFlagThresholds(v, user) {
+  if (!isValidFlagThresholds(v)) {
+    return { ok: false, error: 'invalid', message: '주의 < 경고 < 문제 순서로, 1 이상의 정수로 입력해주세요.' };
+  }
+  var old = getFlagThresholds();
+  PropertiesService.getScriptProperties().setProperty('FLAG_THRESHOLDS', JSON.stringify(v));
+  if (user) {
+    appendLog(user, 'setFlagThresholds', '', '',
+      '지연 기준일 주의 ' + old.caution + '→' + v.caution + ', 경고 ' + old.alert + '→' + v.alert + ', 문제 ' + old.issue + '→' + v.issue);
+  }
+  return { ok: true, flagThresholds: v };
 }
 
 function getUploadFieldNames(count) {
