@@ -56,7 +56,7 @@ function buildOverdueList() {
   var sessionCount = data.sessionCount;
   var list = [];
   data.rows.forEach(function (r) {
-    var flag = computeAutoFlagServer(r.date, r.complete);
+    var flag = r.flagOverride || computeAutoFlagServer(r.date, r.complete);
     if (flag === 'none') return;
     list.push({
       region: r.region || '미지정',
@@ -75,8 +75,36 @@ function getAdminNotifyEmail() {
   return PropertiesService.getScriptProperties().getProperty('ADMIN_NOTIFY_EMAIL') || '';
 }
 
+// 아주 느슨한 형식 검사만 해요(진짜 이메일인지는 발송해봐야 확실히 아니까) — 관리자가
+// 실수로 빈 값이나 @ 없는 값을 넣는 것만 막아요.
+function isLikelyEmail(v) {
+  return typeof v === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+}
+
+function setAdminNotifyEmail(email, user) {
+  email = String(email || '').trim();
+  if (email && !isLikelyEmail(email)) {
+    return { ok: false, error: 'invalid', message: '이메일 형식이 올바르지 않아요.' };
+  }
+  var old = getAdminNotifyEmail();
+  PropertiesService.getScriptProperties().setProperty('ADMIN_NOTIFY_EMAIL', email);
+  if (user) {
+    appendLog(user, 'setAdminEmail', '', '', '관리자 알림 이메일 ' + (old || '(없음)') + '→' + (email || '(없음)'));
+  }
+  return { ok: true, adminNotifyEmail: email };
+}
+
 function getCompanyReminderEnabled() {
   return PropertiesService.getScriptProperties().getProperty('COMPANY_REMINDER_ENABLED') === 'true';
+}
+
+function setCompanyReminderEnabled(enabled, user) {
+  var old = getCompanyReminderEnabled();
+  PropertiesService.getScriptProperties().setProperty('COMPANY_REMINDER_ENABLED', enabled ? 'true' : 'false');
+  if (user) {
+    appendLog(user, 'setReminderEnabled', '', '', '기업 자동 리마인더 ' + (old ? '켜짐' : '꺼짐') + '→' + (enabled ? '켜짐' : '꺼짐'));
+  }
+  return { ok: true, companyReminderEnabled: !!enabled };
 }
 
 function sendOverdueDigest() {
