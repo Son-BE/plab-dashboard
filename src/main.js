@@ -11,6 +11,12 @@ function doGet(e) {
       }
       return respond({ ok: true, log: readLog(200) });
     }
+    if (params.action === 'getUsers') {
+      if (user.role !== 'admin') {
+        return respond({ ok: false, error: 'forbidden', message: '관리자만 볼 수 있어요.' });
+      }
+      return respond({ ok: true, users: getUsers() });
+    }
     var data = readAll();
     var rows = data.rows;
     if (user.region && user.region !== 'all') {
@@ -71,6 +77,18 @@ function doPost(e) {
     }
     if (body.action === 'setReminderEnabled') {
       return respond(setCompanyReminderEnabled(!!body.value, user));
+    }
+    if (body.action === 'addUser') {
+      return respond(addUser(body.username, body.role, body.region, body.password, user));
+    }
+    if (body.action === 'updateUserRole') {
+      return respond(updateUserRole(body.username, body.role, body.region, user));
+    }
+    if (body.action === 'resetUserPassword') {
+      return respond(resetUserPassword(body.username, body.password, user));
+    }
+    if (body.action === 'deleteUser') {
+      return respond(deleteUser(body.username, user));
     }
     return respond({ ok: false, error: 'unknown action', message: '알 수 없는 요청이에요(action: ' + body.action + '). 배포가 최신 코드로 안 됐을 수 있어요.' });
   } catch (err) {

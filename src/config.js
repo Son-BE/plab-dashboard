@@ -24,13 +24,38 @@ var HEADERS = (function () {
   return headers;
 })();
 
-var USERS = [
+// PropertiesService에 USERS_JSON이 아직 없을 때(최초 1회)만 쓰는 시드 데이터예요.
+// 실제 계정 목록은 getUsers()/saveUsers()로 관리해요 — "사용자 권한" 화면에서 계정을
+// 추가/수정/삭제하면 재배포 없이 바로 반영돼요.
+var DEFAULT_USERS = [
   { username: 'Admin_ai', role: 'admin', region: 'all' },
   { username: 'All_ai', role: 'viewer', region: 'all' },
   { username: 'Sccei_ai', role: 'viewer', region: '수도권' },
   { username: 'Gccei_ai', role: 'viewer', region: '강원권' },
   { username: 'Jccei_ai', role: 'viewer', region: '제주권' }
 ];
+
+function getUsers() {
+  var raw = PropertiesService.getScriptProperties().getProperty('USERS_JSON');
+  if (!raw) return DEFAULT_USERS;
+  try {
+    var v = JSON.parse(raw);
+    if (Array.isArray(v)) return v;
+  } catch (err) {}
+  return DEFAULT_USERS;
+}
+
+function saveUsers(list) {
+  PropertiesService.getScriptProperties().setProperty('USERS_JSON', JSON.stringify(list));
+}
+
+function findUser(username) {
+  var list = getUsers();
+  for (var i = 0; i < list.length; i++) {
+    if (list[i].username === username) return list[i];
+  }
+  return null;
+}
 
 var DEFAULT_FLAG_THRESHOLDS = { caution: 3, alert: 5, issue: 7 };
 var FLAG_LABELS_KO = { caution: '주의', alert: '경고', issue: '문제' };
