@@ -550,22 +550,34 @@
     background: var(--panel-soft);
   }
 
-  .company-cell {
-    display: flex;
-    align-items: center;
-    gap: 6px;
+  /* td에 display:flex를 주면 그 칸만 vertical-align:middle이 안 먹혀서 다른 칸(협약일자·
+     폴더NC·권역)과 세로 기준선이 어긋나 보여요 — 그래서 flex 대신 일반 표 셀 정렬(inline-block
+     + vertical-align)로 정렬해요. */
+  .company-cell > .readonly-text,
+  .company-cell > .cell-input.company-input {
+    vertical-align: middle;
   }
 
   /* 기업명이 길면 줄바꿈되면서 그 행만 유독 높아져서 표 전체가 들쭉날쭉해 보이는 문제 —
      한 줄로 말줄임(ellipsis) 처리해서 모든 행 높이를 균일하게 맞춰요. 필요하면 title
      속성(브라우저 기본 툴팁)으로 전체 이름을 볼 수 있어요. */
-  .company-cell > .readonly-text,
-  .company-cell > .cell-input.company-input {
-    flex: 1;
-    min-width: 0;
+  .company-cell > .readonly-text {
+    display: inline-block;
+    max-width: 150px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .company-cell > .cell-input.company-input {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .company-cell > .example-badge {
+    vertical-align: middle;
+    margin-left: 6px;
   }
 
   .cell-input {
