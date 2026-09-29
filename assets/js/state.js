@@ -7,7 +7,10 @@
 
   var REGION_PRESETS = ['수도권','강원권','제주권'];
   var DEFAULT_ROUND = '1회차';
-  var ROUND_PRESETS = ['1회차', '2회차'];
+  // '2회차'는 더 이상 하드코딩된 기본값으로 자동 표시하지 않아요 — 이제 프로그램 탭에서
+  // 회차를 직접 만들면(rounds 시트) STATE.rounds를 통해 사이드바에 나오게 됐으니까요
+  // (renderRoundNav()가 STATE.rounds도 같이 합쳐서 목록을 만듦).
+  var ROUND_PRESETS = ['1회차'];
   // "YYYY-MM-DD" 형태의 날짜 문자열을 "2026년 10월 15일" 식으로 보여줘요. 회차 시작일 등
   // 날짜 입력값을 사람이 읽기 좋은 문구로 바꿀 때 재사용해요.
   function formatOpenDateText(dateText){
