@@ -2,6 +2,17 @@
 // 설정돼있으면, 그 값으로 '1회차' 레코드를 한 번만 자동으로 만들어줘요. 프로그램 탭으로
 // 드라이브 폴더 설정을 옮기면서도, 이미 잘 되고 있던 1회차 동기화가 끊기지 않게 하는
 // 안전한 이전 경로예요. 이미 '1회차' 레코드가 있으면 아무것도 안 해요.
+// 회차 관리 화면에 드라이브 폴더 ID 대신 전체 URL을 붙여넣거나(예: ".../folders/xxxx?hl=ko"),
+// 앞뒤에 공백이 섞여 들어오는 실수를 방어해요. 공백이 남아있으면 문자열 비교(exclude 목록
+// 매칭)가 조용히 실패해서 다른 회차 폴더를 걸러내지 못하는 원인이 될 수 있어서, 쓰는
+// 곳마다 다시 안 짜도 되게 여기 한 곳에서 정리해요.
+function normalizeDriveFolderId(v) {
+  v = String(v || '').trim();
+  var m = v.match(/\/folders\/([a-zA-Z0-9_-]+)/);
+  if (m) return m[1];
+  return v;
+}
+
 function ensureRoundHasDefaultFolder() {
   if (findRoundByName(CURRENT_SYNC_ROUND)) return;
   if (!DRIVE_FOLDER_ID || DRIVE_FOLDER_ID.indexOf('PASTE_YOUR') === 0) return;
@@ -10,7 +21,9 @@ function ensureRoundHasDefaultFolder() {
 
 function syncFromDrive() {
   ensureRoundHasDefaultFolder();
-  var rounds = readRounds().filter(function (r) { return r.driveFolderId; });
+  var rounds = readRounds()
+    .map(function (r) { return Object.assign({}, r, { driveFolderId: normalizeDriveFolderId(r.driveFolderId) }); })
+    .filter(function (r) { return r.driveFolderId; });
   if (!rounds.length) {
     return { error: '동기화할 회차가 없어요. 프로그램 탭에서 회차를 만들고 드라이브 폴더 ID를 입력해주세요.' };
   }
