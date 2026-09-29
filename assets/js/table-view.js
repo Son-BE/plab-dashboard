@@ -50,7 +50,13 @@
 
   function sessionHeaderCells(){
     var html = '';
-    for(var i=1; i<=STATE.sessionCount; i++) html += '<th class="col-session">' + i + '회차</th>';
+    for(var i=1; i<=STATE.sessionCount; i++){
+      // 프로그램 탭에서 세션 커리큘럼(주제)을 정해뒀으면 툴팁으로 보여줘요 — 없으면 그냥
+      // 번호만 있는 헤더로, 동작은 예전과 동일해요.
+      var curriculum = (STATE.sessionCurriculum || [])[i-1];
+      var titleAttr = curriculum && curriculum.title ? ' title="' + escapeHtml(curriculum.title) + '"' : '';
+      html += '<th class="col-session"' + titleAttr + '>' + i + '회차</th>';
+    }
     return html;
   }
 

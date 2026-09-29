@@ -103,7 +103,6 @@
   function renderSettingsView(){
     if(!isAdmin()) return;
     if(sessionCountInput) sessionCountInput.value = STATE.sessionCount;
-    if(stepOpenDateInput) stepOpenDateInput.value = getStep2OpenDate();
     if(flagCautionInput) flagCautionInput.value = STATE.flagThresholds.caution;
     if(flagAlertInput) flagAlertInput.value = STATE.flagThresholds.alert;
     if(flagIssueInput) flagIssueInput.value = STATE.flagThresholds.issue;
@@ -259,4 +258,79 @@
       console.error('[고객사 관리] 목록 조회 실패:', err);
       clientsListEl.innerHTML = '<li class="side-item"><span>불러오는 중 문제가 생겼어요.</span></li>';
     });
+  }
+
+  // ── 프로그램(회차 마스터 + 세션 커리큘럼) ──────────────────────────────
+  // rounds/sessionCurriculum은 fetchRows()의 기본 응답에 이미 실려서 STATE에 담겨있어요
+  // (고객사/사용자 목록과 달리 민감한 정보가 아니라서 별도 admin 전용 조회 없이 모두에게
+  // 내려옴) — 그래서 이 페이지는 진입할 때 새로 fetch하지 않고 STATE를 그대로 그려요.
+  var ROUND_STATUS_LABELS = { recruiting: '모집중', ongoing: '진행중', closed: '종료' };
+
+  function roundDateRangeLabel(r){
+    if(!r.startDate && !r.endDate) return '일정 미정';
+    return formatOpenDateText(r.startDate) + (r.endDate ? (' ~ ' + formatOpenDateText(r.endDate)) : '');
+  }
+
+  function renderRoundsList(){
+    if(!roundsListEl) return;
+    var list = STATE.rounds.slice().sort(function(a,b){ return String(a.name||'').localeCompare(String(b.name||'')); });
+    if(!list.length){
+      roundsListEl.innerHTML = '<li class="side-item"><span>등록된 회차가 없어요.</span></li>';
+      return;
+    }
+    roundsListEl.innerHTML = list.map(function(r){
+      var status = r.status || 'recruiting';
+      return '<li class="side-item round-item" style="flex-direction:column; align-items:stretch; gap:10px;">' +
+        '<div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">' +
+          '<span style="font-weight:700;">' + escapeHtml(r.name) + '</span>' +
+          '<span class="chip' + (status === 'recruiting' ? '' : ' muted') + '">' + (ROUND_STATUS_LABELS[status] || status) + '</span>' +
+          '<span style="color:var(--muted); font-size:13px;">' + escapeHtml(roundDateRangeLabel(r)) + '</span>' +
+          '<div style="margin-left:auto; display:flex; gap:6px;">' +
+            '<button type="button" class="btn btn-ghost round-toggle-btn" data-id="' + escapeHtml(r.id) + '">상세</button>' +
+            '<button type="button" class="btn btn-ghost round-delete-btn" data-id="' + escapeHtml(r.id) + '" style="color:var(--danger);">삭제</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="round-detail" data-id="' + escapeHtml(r.id) + '" hidden>' +
+          '<div class="settings-actions" style="align-items:flex-end; flex-wrap:wrap; margin-bottom:10px;">' +
+            '<label style="display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted);">시작일' +
+              '<input class="compose-input round-field-startDate" type="date" value="' + escapeHtml(r.startDate||'') + '" style="height:34px; width:150px;"></label>' +
+            '<label style="display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted);">종료일' +
+              '<input class="compose-input round-field-endDate" type="date" value="' + escapeHtml(r.endDate||'') + '" style="height:34px; width:150px;"></label>' +
+            '<label style="display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted);">상태' +
+              '<select class="compose-input round-field-status" style="height:34px; width:100px;">' +
+                Object.keys(ROUND_STATUS_LABELS).map(function(s){
+                  return '<option value="' + s + '"' + (status === s ? ' selected' : '') + '>' + ROUND_STATUS_LABELS[s] + '</option>';
+                }).join('') +
+              '</select></label>' +
+            '<button type="button" class="btn btn-primary round-save-btn" data-id="' + escapeHtml(r.id) + '">저장</button>' +
+          '</div>' +
+          '<label style="display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted);">설명' +
+            '<textarea class="compose-textarea round-field-description" style="min-height:60px;">' + escapeHtml(r.description||'') + '</textarea></label>' +
+        '</div>' +
+      '</li>';
+    }).join('');
+  }
+
+  function renderCurriculumList(){
+    if(!curriculumListEl) return;
+    if(curriculumSessionCountEl) curriculumSessionCountEl.textContent = String(STATE.sessionCount);
+    var items = STATE.sessionCurriculum || [];
+    var rows = [];
+    for(var n = 1; n <= STATE.sessionCount; n++){
+      var item = items[n-1] || { title:'', description:'' };
+      rows.push(
+        '<div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">' +
+          '<span style="font-weight:700; min-width:52px;">' + n + '회차</span>' +
+          '<input class="compose-input curriculum-title-input" type="text" placeholder="주제" value="' + escapeHtml(item.title||'') + '" style="height:34px; width:160px;">' +
+          '<input class="compose-input curriculum-desc-input" type="text" placeholder="설명(선택)" value="' + escapeHtml(item.description||'') + '" style="height:34px; flex:1; min-width:180px;">' +
+        '</div>'
+      );
+    }
+    curriculumListEl.innerHTML = rows.join('');
+  }
+
+  function renderProgramView(){
+    if(!isAdmin()) return;
+    renderRoundsList();
+    renderCurriculumList();
   }

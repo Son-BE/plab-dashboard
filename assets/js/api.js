@@ -95,6 +95,10 @@
       // flagThresholds는 normalizeRow(아래에서 바로 호출)가 computeAutoFlag를 통해 참조하니,
       // map(normalizeRow)보다 먼저 갱신해둬요 (sessionCount와 같은 이유).
       if(data && data.flagThresholds) STATE.flagThresholds = data.flagThresholds;
+      // 회차 마스터·세션 커리큘럼은 관리자·협력사 계정 모두 봐야 해서(회차 선택, 표 헤더 등에
+      // 쓰임) 민감하지 않은 정보로 취급 — 관리자 전용 액션으로 안 빼고 기본 응답에 실어 보내요.
+      STATE.rounds = Array.isArray(data && data.rounds) ? data.rounds : [];
+      STATE.sessionCurriculum = Array.isArray(data && data.sessionCurriculum) ? data.sessionCurriculum : [];
       // 관리자 계정으로 응답 받을 때만 서버가 내려줘요(뷰어 계정엔 빠져있을 수 있음) — 있을 때만 갱신.
       if(data && data.adminNotifyEmail !== undefined) STATE.adminNotifyEmail = data.adminNotifyEmail;
       if(data && data.companyReminderEnabled !== undefined) STATE.companyReminderEnabled = data.companyReminderEnabled;

@@ -6,6 +6,8 @@ var COMPANY_HEADERS = [
   'id', 'name', 'region', 'contactName', 'contactPhone', 'contactEmail',
   'businessNo', 'status', 'memo', 'createdAt', 'updatedAt'
 ];
+var ROUND_SHEET_NAME = 'rounds';
+var ROUND_HEADERS = ['id', 'name', 'startDate', 'endDate', 'status', 'description', 'createdAt', 'updatedAt'];
 var MAX_SESSIONS = 12;
 var DEFAULT_ROUND = '1회차';
 var CURRENT_SYNC_ROUND = '1회차';
@@ -111,6 +113,35 @@ function setFlagThresholds(v, user) {
       '지연 기준일 주의 ' + old.caution + '→' + v.caution + ', 경고 ' + old.alert + '→' + v.alert + ', 문제 ' + old.issue + '→' + v.issue);
   }
   return { ok: true, flagThresholds: v };
+}
+
+var DEFAULT_SESSION_CURRICULUM = [];
+
+// 세션 커리큘럼은 회차와 무관하게 전역 공통이에요(sessionCount와 같은 성격) — 배열
+// 인덱스가 곧 회차 번호(0번째 = 1회차)예요. 항목 형식이 안 맞으면 조용히 기본값으로 돌아가요.
+function isValidSessionCurriculum(v) {
+  return Array.isArray(v) && v.every(function (item) {
+    return item && typeof item.title === 'string' && typeof item.description === 'string';
+  });
+}
+
+function getSessionCurriculum() {
+  var raw = PropertiesService.getScriptProperties().getProperty('SESSION_CURRICULUM_JSON');
+  if (!raw) return DEFAULT_SESSION_CURRICULUM;
+  try {
+    var v = JSON.parse(raw);
+    if (isValidSessionCurriculum(v)) return v;
+  } catch (err) {}
+  return DEFAULT_SESSION_CURRICULUM;
+}
+
+function setSessionCurriculum(list, user) {
+  if (!isValidSessionCurriculum(list)) {
+    return { ok: false, error: 'invalid', message: '커리큘럼 형식이 올바르지 않아요.' };
+  }
+  PropertiesService.getScriptProperties().setProperty('SESSION_CURRICULUM_JSON', JSON.stringify(list));
+  if (user) appendLog(user, 'setSessionCurriculum', '', '', '세션 커리큘럼 저장 (' + list.length + '개 항목)');
+  return { ok: true, sessionCurriculum: list };
 }
 
 function getUploadFieldNames(count) {

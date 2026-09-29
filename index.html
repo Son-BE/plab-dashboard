@@ -25,7 +25,7 @@
     <div class="nav-group">
       <div class="sidebar-title">운영</div>
       <button class="nav-item active" type="button" id="nav-dashboard"><span class="icon"></span>대시보드</button>
-      <button class="nav-item" type="button" disabled><span class="icon"></span>프로그램<span class="nav-item-soon">준비 중</span></button>
+      <button class="nav-item" type="button" id="nav-program"><span class="icon"></span>프로그램</button>
       <button class="nav-item" type="button" id="nav-sessions"><span class="icon"></span>세션 현황</button>
       <button class="nav-item" type="button" id="nav-collect"><span class="icon"></span>취합현황</button>
     </div>
@@ -82,6 +82,53 @@
 
   <section class="main-grid" id="quick-panels" aria-label="처리 필요 항목"></section>
   </div>
+
+  <section id="program-view" hidden aria-label="프로그램">
+    <h2 style="margin:0 0 18px; font-size:22px; letter-spacing:-0.03em;">프로그램</h2>
+
+    <section class="settings-card" style="margin-bottom:18px;">
+      <div class="settings-header">
+        <h3 class="settings-title">회차 관리</h3>
+      </div>
+      <ul class="side-list" id="rounds-list"></ul>
+    </section>
+
+    <section class="settings-card" style="margin-bottom:18px;">
+      <div class="settings-header">
+        <h3 class="settings-title">+ 회차 추가</h3>
+      </div>
+      <div class="settings-actions" style="align-items:flex-end; flex-wrap:wrap;">
+        <label style="display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted);">회차 이름
+          <input class="compose-input" id="new-round-name-input" type="text" placeholder="예: 3회차" style="height:38px; width:120px;">
+        </label>
+        <label style="display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted);">시작일
+          <input class="compose-input" id="new-round-start-input" type="date" style="height:38px; width:150px;">
+        </label>
+        <label style="display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted);">종료일
+          <input class="compose-input" id="new-round-end-input" type="date" style="height:38px; width:150px;">
+        </label>
+        <label style="display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted);">상태
+          <select class="compose-input" id="new-round-status-input" style="height:38px; width:100px;">
+            <option value="recruiting">모집중</option>
+            <option value="ongoing">진행중</option>
+            <option value="closed">종료</option>
+          </select>
+        </label>
+        <button id="add-round-btn" class="btn btn-primary" type="button">추가</button>
+      </div>
+    </section>
+
+    <section class="settings-card">
+      <div class="settings-header">
+        <h3 class="settings-title">세션 커리큘럼</h3>
+      </div>
+      <p class="subtitle" style="margin:0 0 12px;">회차와 무관하게 전역으로 적용돼요. 1~<span id="curriculum-session-count">6</span>회차의 주제를 정해두면 표 헤더 등에서 참고용으로 쓰여요.</p>
+      <div id="curriculum-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+      <div class="settings-actions">
+        <button id="save-curriculum-btn" class="btn btn-primary" type="button">커리큘럼 저장</button>
+      </div>
+    </section>
+  </section>
 
   <div id="table-view" hidden>
   <section class="toolbar">
@@ -224,17 +271,6 @@
       <div class="settings-actions">
         <input id="session-count-input" type="number" min="1" step="1">
         <button id="session-count-save-btn" class="btn btn-primary" type="button">저장</button>
-      </div>
-    </section>
-
-    <section class="settings-card" style="margin-bottom:18px;">
-      <div class="settings-header">
-        <h3 class="settings-title">Step 2 오픈 예정일 설정</h3>
-        <span class="settings-badge">관리자</span>
-      </div>
-      <div class="settings-actions">
-        <input id="step-open-date-input" type="date">
-        <button id="step-open-date-save-btn" class="btn btn-primary" type="button">저장</button>
       </div>
     </section>
 

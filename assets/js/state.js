@@ -8,26 +8,14 @@
   var REGION_PRESETS = ['수도권','강원권','제주권'];
   var DEFAULT_ROUND = '1회차';
   var ROUND_PRESETS = ['1회차', '2회차'];
-  var STEP2_OPEN_DATE_KEY = 'step2_open_date';
-  function getStep2OpenDate(){
-    try {
-      return localStorage.getItem(STEP2_OPEN_DATE_KEY) || '2026-10-15';
-    } catch (e) {
-      return '2026-10-15';
-    }
-  }
-  function setStep2OpenDate(dateText){
-    try { localStorage.setItem(STEP2_OPEN_DATE_KEY, String(dateText || '')); } catch (e) {}
-  }
+  // "YYYY-MM-DD" 형태의 날짜 문자열을 "2026년 10월 15일" 식으로 보여줘요. 회차 시작일 등
+  // 날짜 입력값을 사람이 읽기 좋은 문구로 바꿀 때 재사용해요.
   function formatOpenDateText(dateText){
     if(!dateText) return '추후';
     var match = /^\d{4}-\d{2}-\d{2}$/.exec(String(dateText));
     if(!match) return String(dateText);
     var parts = String(dateText).split('-');
     return parts[0] + '년 ' + Number(parts[1]) + '월 ' + Number(parts[2]) + '일';
-  }
-  function getStep2OpenMessage(){
-    return 'Step 2는 ' + formatOpenDateText(getStep2OpenDate()) + '에 오픈예정입니다.';
   }
   // 회차(세션) 수는 이제 고정 6이 아니라 서버(apps-script-code.gs)가 알려주는 값을 따라가요.
   // MAX_SESSIONS는 서버 쪽 상한과 반드시 같은 값으로 맞춰야 해요 (설정 화면의 입력 상한으로도 써요).
@@ -47,7 +35,7 @@
   var viewMode = 'collect'; // 'collect'(취합현황) | 'upload'(업로드현황)
   var currentPage = 'dashboard'; // 'dashboard' | 'sessions' — 사이드바 대시보드/세션 현황 전환
 
-  var STATE = { rows: [], companies: [], lastSync: null, lastDigest: null, sessionCount: 6, flagThresholds: { caution:3, alert:5, issue:7 }, adminNotifyEmail: '', companyReminderEnabled: false };
+  var STATE = { rows: [], companies: [], rounds: [], sessionCurriculum: [], lastSync: null, lastDigest: null, sessionCount: 6, flagThresholds: { caution:3, alert:5, issue:7 }, adminNotifyEmail: '', companyReminderEnabled: false };
   var filters = { q:'', region:'all', status:'all', flag:'all', round: DEFAULT_ROUND };
   var apiUrl = null;
   var pendingSaves = {};
@@ -66,8 +54,8 @@
       addRowBtn, clearExamplesBtn, regionListEl, saveDot, saveText, refreshBtn, setupBanner, setupUrlInput, setupSaveBtn,
       driveSyncBtn, regionSidebarSection, loginScreen, loginForm, loginUsername, loginPassword, loginError, loginSubmit,
       roleBadge, logoutBtn, lastDigestLabel, exportExcelBtn, sessionCountInput,
-      sessionCountSaveBtn, stepOpenDateInput,
-      stepOpenDateSaveBtn, changeLogBtn, changeLogBanner, changeLogBody, changeLogRefreshBtn, changeLogCloseBtn,
+      sessionCountSaveBtn,
+      changeLogBtn, changeLogBanner, changeLogBody, changeLogRefreshBtn, changeLogCloseBtn,
       flagCautionInput, flagAlertInput, flagIssueInput, flagThresholdsSaveBtn,
       navDashboardBtn, navSessionsBtn, dashboardViewEl, sessionViewEl, sessionViewScopeEl, sessionStatsGridEl, sessionChartMountEl, sessionTableBodyEl,
       sessionChartTooltipEl, navCollectBtn, navUploadBtn, tableViewEl,
@@ -75,7 +63,9 @@
       navSettingsBtn, settingsViewEl, adminEmailInput, adminEmailSaveBtn, reminderEnabledInput,
       navUsersBtn, usersViewEl, usersListEl, newUserUsernameInput, newUserPasswordInput, newUserRoleInput, newUserRegionInput, addUserBtn,
       navClientsBtn, clientsViewEl, clientsListEl, clientSearchInput, clientRegionFilterInput, clientStatusFilterInput,
-      newClientNameInput, newClientRegionInput, newClientContactNameInput, newClientContactPhoneInput, newClientContactEmailInput, newClientBusinessNoInput, addClientBtn;
+      newClientNameInput, newClientRegionInput, newClientContactNameInput, newClientContactPhoneInput, newClientContactEmailInput, newClientBusinessNoInput, addClientBtn,
+      navProgramBtn, programViewEl, roundsListEl, newRoundNameInput, newRoundStartInput, newRoundEndInput, newRoundStatusInput, addRoundBtn,
+      curriculumListEl, curriculumSessionCountEl, saveCurriculumBtn;
 
   function roleLabel(){
     if(AUTH.role === 'admin') return '관리자 계정';

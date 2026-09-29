@@ -23,7 +23,7 @@ function doGet(e) {
     if (user.region && user.region !== 'all') {
       rows = rows.filter(function (r) { return (r.region || '미지정') === user.region; });
     }
-    var out = { rows: rows, role: user.role, region: user.region, lastSync: getLastSyncInfo(), sessionCount: data.sessionCount, lastDigest: getLastDigestInfo(), flagThresholds: getFlagThresholds() };
+    var out = { rows: rows, role: user.role, region: user.region, lastSync: getLastSyncInfo(), sessionCount: data.sessionCount, lastDigest: getLastDigestInfo(), flagThresholds: getFlagThresholds(), rounds: readRounds(), sessionCurriculum: getSessionCurriculum() };
     if (user.role === 'admin') {
       out.adminNotifyEmail = getAdminNotifyEmail();
       out.companyReminderEnabled = getCompanyReminderEnabled();
@@ -96,6 +96,15 @@ function doPost(e) {
     }
     if (body.action === 'deleteCompany' && body.id) {
       return respond(deleteCompany(body.id, user));
+    }
+    if (body.action === 'upsertRound' && body.round) {
+      return respond(upsertRound(body.round, user));
+    }
+    if (body.action === 'deleteRound' && body.id) {
+      return respond(deleteRound(body.id, user));
+    }
+    if (body.action === 'setSessionCurriculum') {
+      return respond(setSessionCurriculum(body.value, user));
     }
     return respond({ ok: false, error: 'unknown action', message: '알 수 없는 요청이에요(action: ' + body.action + '). 배포가 최신 코드로 안 됐을 수 있어요.' });
   } catch (err) {

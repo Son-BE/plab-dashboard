@@ -269,6 +269,8 @@
     STATE.rows.forEach(function(r){ var k = r.round || DEFAULT_ROUND; if(used.indexOf(k) === -1) used.push(k); });
     var all = ROUND_PRESETS.slice();
     used.forEach(function(r){ if(all.indexOf(r) === -1) all.push(r); });
+    // 회차 마스터(프로그램 탭에서 관리)에만 있고 아직 기업이 하나도 없는 회차도 미리 보이게 해요.
+    STATE.rounds.forEach(function(r){ if(r.name && all.indexOf(r.name) === -1) all.push(r.name); });
     all.sort(); // "1회차","2회차"... 순서대로 (문자열 정렬이라 10회차 이상이면 따로 손봐야 할 수 있어요)
 
     var current = filters.round;
@@ -286,8 +288,11 @@
       }));
     roundNavEl.innerHTML = buildNavHTML(items, current, 'round');
     if(!stepMessageEl) return;
-    if(String(current).replace(/[^0-9]/g, '') === '2'){
-      stepMessageEl.textContent = getStep2OpenMessage();
+    // 선택된 회차의 마스터 데이터(프로그램 탭에서 등록)에 시작일이 있으면 오픈예정 메시지를
+    // 보여줘요 — 예전엔 "회차 번호가 2일 때만" 하드코딩이었는데, 이제 회차 무관하게 다 됨.
+    var roundInfo = current !== 'all' ? STATE.rounds.find(function(r){ return r.name === current; }) : null;
+    if(roundInfo && roundInfo.startDate){
+      stepMessageEl.textContent = current + '는 ' + formatOpenDateText(roundInfo.startDate) + '에 오픈예정입니다.';
       stepMessageEl.style.display = 'block';
     } else {
       stepMessageEl.textContent = '';

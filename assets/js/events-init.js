@@ -28,6 +28,7 @@
     if(settingsViewEl) settingsViewEl.hidden = page !== 'settings';
     if(usersViewEl) usersViewEl.hidden = page !== 'users';
     if(clientsViewEl) clientsViewEl.hidden = page !== 'clients';
+    if(programViewEl) programViewEl.hidden = page !== 'program';
     if(navDashboardBtn) navDashboardBtn.classList.toggle('active', page === 'dashboard');
     if(navSessionsBtn) navSessionsBtn.classList.toggle('active', page === 'sessions');
     if(navCollectBtn) navCollectBtn.classList.toggle('active', page === 'collect');
@@ -36,6 +37,7 @@
     if(navSettingsBtn) navSettingsBtn.classList.toggle('active', page === 'settings');
     if(navUsersBtn) navUsersBtn.classList.toggle('active', page === 'users');
     if(navClientsBtn) navClientsBtn.classList.toggle('active', page === 'clients');
+    if(navProgramBtn) navProgramBtn.classList.toggle('active', page === 'program');
     if(page === 'dashboard'){ renderStats(); renderQuickPanels(); }
     if(page === 'sessions') renderSessionView();
     if(page === 'collect' || page === 'upload') setViewMode(page);
@@ -43,6 +45,7 @@
     if(page === 'settings') renderSettingsView();
     if(page === 'users') fetchUsers();
     if(page === 'clients') fetchClients();
+    if(page === 'program') renderProgramView();
   }
 
   // 로그인한 계정 권한 + 현재 탭(취합현황/업로드현황)에 따라 편집용 버튼/문구를 보이거나 숨겨요.
@@ -60,6 +63,7 @@
     if(navSettingsBtn) navSettingsBtn.hidden = !admin;
     if(navUsersBtn) navUsersBtn.hidden = !admin;
     if(navClientsBtn) navClientsBtn.hidden = !admin;
+    if(navProgramBtn) navProgramBtn.hidden = !admin;
     // 권역 공유 계정이 아직 기업을 안 골랐으면(uploadGated), 엑셀 내보내기도 잠가둬요.
     // 안 그러면 고르기 전 상태에서 눌러서 권역 전체 데이터가 그대로 새어나갈 수 있어요.
     if(exportExcelBtn) exportExcelBtn.hidden = uploadGated;
@@ -144,20 +148,9 @@
     roundNavEl.addEventListener('click', function(e){
       var btn = e.target.closest('.region-nav-item');
       if(!btn) return;
-      var selectedRound = btn.getAttribute('data-round');
-      var stepNum = String(selectedRound || '').replace(/[^0-9]/g, '');
-      if(stepNum === '2'){
-        if(stepMessageEl){
-          stepMessageEl.textContent = getStep2OpenMessage();
-          stepMessageEl.style.display = 'block';
-        }
-        return;
-      }
-      if(stepMessageEl){
-        stepMessageEl.textContent = '';
-        stepMessageEl.style.display = 'none';
-      }
-      filters.round = selectedRound;
+      // 오픈예정 메시지는 이제 회차 번호를 안 가리고 renderRoundNav()가 선택된 회차의
+      // 마스터 데이터(startDate)를 보고 알아서 보여줘요 — 여기선 필터만 바꾸면 돼요.
+      filters.round = btn.getAttribute('data-round');
       refreshFilteredViews();
     });
     filterStatus.addEventListener('change', function(){
@@ -311,16 +304,6 @@
         .finally(function(){
           flagThresholdsSaveBtn.disabled = false;
         });
-    });
-    if(stepOpenDateSaveBtn) stepOpenDateSaveBtn.addEventListener('click', function(){
-      if(!isAdmin()) return;
-      var val = stepOpenDateInput.value;
-      if(!val) {
-        alert('오픈 예정일을 선택해 주세요.');
-        return;
-      }
-      setStep2OpenDate(val);
-      renderRoundNav();
     });
     if(sessionCountSaveBtn) sessionCountSaveBtn.addEventListener('click', function(){
       var n = parseInt(sessionCountInput.value, 10);
@@ -555,6 +538,104 @@
         .finally(function(){ addClientBtn.disabled = false; });
     });
 
+    if(navProgramBtn) navProgramBtn.addEventListener('click', function(){ setPage('program'); });
+    if(roundsListEl){
+      roundsListEl.addEventListener('click', function(e){
+        var toggleBtn = e.target.closest('.round-toggle-btn');
+        if(toggleBtn){
+          var li = toggleBtn.closest('li');
+          var detail = li.querySelector('.round-detail');
+          if(detail) detail.hidden = !detail.hidden;
+          return;
+        }
+        var saveBtn = e.target.closest('.round-save-btn');
+        if(saveBtn){
+          var id = saveBtn.getAttribute('data-id');
+          var detailEl = saveBtn.closest('.round-detail');
+          var round = {
+            id: id,
+            startDate: detailEl.querySelector('.round-field-startDate').value,
+            endDate: detailEl.querySelector('.round-field-endDate').value,
+            status: detailEl.querySelector('.round-field-status').value,
+            description: detailEl.querySelector('.round-field-description').value
+          };
+          var existing = STATE.rounds.find(function(r){ return r.id === id; });
+          if(existing) round.name = existing.name;
+          saveBtn.disabled = true;
+          apiPost('upsertRound', { round:round })
+            .then(function(data){
+              if(!data || data.ok === false){ alert((data && data.message) || '저장에 실패했어요.'); return; }
+              STATE.rounds = data.rounds || [];
+              renderRoundsList();
+              renderRoundNav();
+              if(data.warning) alert(data.warning);
+            })
+            .catch(function(err){ console.error('[프로그램] 회차 저장 실패:', err); alert('저장 중 문제가 생겼어요.'); })
+            .finally(function(){ saveBtn.disabled = false; });
+          return;
+        }
+        var delBtn = e.target.closest('.round-delete-btn');
+        if(delBtn){
+          var delId = delBtn.getAttribute('data-id');
+          if(!confirm('이 회차를 삭제할까요? 회차별 참여 기록(취합현황)은 그대로 남아요.')) return;
+          delBtn.disabled = true;
+          apiPost('deleteRound', { id:delId })
+            .then(function(data){
+              if(!data || data.ok === false){ alert((data && data.message) || '삭제에 실패했어요.'); return; }
+              STATE.rounds = data.rounds || [];
+              renderRoundsList();
+              renderRoundNav();
+            })
+            .catch(function(err){ console.error('[프로그램] 회차 삭제 실패:', err); alert('삭제 중 문제가 생겼어요.'); })
+            .finally(function(){ delBtn.disabled = false; });
+        }
+      });
+    }
+    if(addRoundBtn) addRoundBtn.addEventListener('click', function(){
+      if(!isAdmin()) return;
+      var name = (newRoundNameInput.value || '').trim();
+      if(!name){ alert('회차 이름을 입력해주세요.'); return; }
+      var round = {
+        name: name,
+        startDate: newRoundStartInput.value,
+        endDate: newRoundEndInput.value,
+        status: newRoundStatusInput.value
+      };
+      addRoundBtn.disabled = true;
+      apiPost('upsertRound', { round:round })
+        .then(function(data){
+          if(!data || data.ok === false){ alert((data && data.message) || '추가에 실패했어요.'); return; }
+          newRoundNameInput.value = '';
+          newRoundStartInput.value = '';
+          newRoundEndInput.value = '';
+          newRoundStatusInput.value = 'recruiting';
+          STATE.rounds = data.rounds || [];
+          renderRoundsList();
+          renderRoundNav();
+          if(data.warning) alert(data.warning);
+        })
+        .catch(function(err){ console.error('[프로그램] 회차 추가 실패:', err); alert('추가 중 문제가 생겼어요.'); })
+        .finally(function(){ addRoundBtn.disabled = false; });
+    });
+    if(saveCurriculumBtn) saveCurriculumBtn.addEventListener('click', function(){
+      if(!isAdmin() || !curriculumListEl) return;
+      var titleInputs = curriculumListEl.querySelectorAll('.curriculum-title-input');
+      var descInputs = curriculumListEl.querySelectorAll('.curriculum-desc-input');
+      var list = [];
+      for(var i = 0; i < titleInputs.length; i++){
+        list.push({ title: titleInputs[i].value, description: descInputs[i].value });
+      }
+      saveCurriculumBtn.disabled = true;
+      apiPost('setSessionCurriculum', { value:list })
+        .then(function(data){
+          if(!data || data.ok === false){ alert((data && data.message) || '저장에 실패했어요.'); return; }
+          STATE.sessionCurriculum = data.sessionCurriculum || [];
+          alert('커리큘럼을 저장했어요.');
+        })
+        .catch(function(err){ console.error('[프로그램] 커리큘럼 저장 실패:', err); alert('저장 중 문제가 생겼어요.'); })
+        .finally(function(){ saveCurriculumBtn.disabled = false; });
+    });
+
     // ── 권역 공유 계정의 "기업 선택" 게이트 ──────────────────────────────
     var uploadCompanyInput = document.getElementById('upload-company-input');
     var uploadCompanyConfirmBtn = document.getElementById('upload-company-confirm-btn');
@@ -621,8 +702,6 @@
     exportExcelBtn = document.getElementById('export-excel-btn');
     sessionCountInput = document.getElementById('session-count-input');
     sessionCountSaveBtn = document.getElementById('session-count-save-btn');
-    stepOpenDateInput = document.getElementById('step-open-date-input');
-    stepOpenDateSaveBtn = document.getElementById('step-open-date-save-btn');
     changeLogBtn = document.getElementById('change-log-btn');
     changeLogBanner = document.getElementById('change-log-banner');
     changeLogBody = document.getElementById('change-log-body');
@@ -666,6 +745,17 @@
       clientRegionFilterInput.innerHTML = '<option value="all">전체 권역</option>' +
         REGION_PRESETS.map(function(r){ return '<option value="' + escapeHtml(r) + '">' + escapeHtml(r) + '</option>'; }).join('');
     }
+    navProgramBtn = document.getElementById('nav-program');
+    programViewEl = document.getElementById('program-view');
+    roundsListEl = document.getElementById('rounds-list');
+    newRoundNameInput = document.getElementById('new-round-name-input');
+    newRoundStartInput = document.getElementById('new-round-start-input');
+    newRoundEndInput = document.getElementById('new-round-end-input');
+    newRoundStatusInput = document.getElementById('new-round-status-input');
+    addRoundBtn = document.getElementById('add-round-btn');
+    curriculumListEl = document.getElementById('curriculum-list');
+    curriculumSessionCountEl = document.getElementById('curriculum-session-count');
+    saveCurriculumBtn = document.getElementById('save-curriculum-btn');
     navDashboardBtn = document.getElementById('nav-dashboard');
     navSessionsBtn = document.getElementById('nav-sessions');
     dashboardViewEl = document.getElementById('dashboard-view');
@@ -688,7 +778,6 @@
     notifySendBtn = document.getElementById('notify-send-btn');
     notifyResultEl = document.getElementById('notify-result');
     if(sessionCountInput) sessionCountInput.max = String(MAX_SESSIONS);
-    if(stepOpenDateInput) stepOpenDateInput.value = getStep2OpenDate();
     regionSidebarSection = document.getElementById('region-sidebar-section');
     loginScreen = document.getElementById('login-screen');
     loginForm = document.getElementById('login-form');
