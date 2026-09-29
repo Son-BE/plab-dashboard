@@ -582,10 +582,13 @@
     return STATE.rows.filter(matchesFilters);
   }
 
+  // "전체 N개사"는 시스템 전체가 아니라 지금 선택된 회차·권역 범위 안에서의 전체예요
+  // (검색·상태·이슈 필터만 무시하고 셈) — 회차별로 데이터가 분리된 지금 구조에서
+  // "전체"가 다른 회차 데이터까지 합친 숫자로 보이면 혼란스러우니까요.
   function renderRowCountLabel(){
-    var total = STATE.rows.length;
+    var scopedTotal = STATE.rows.filter(function(r){ return matchesRegion(r) && matchesRound(r); }).length;
     var shown = visibleRows().length;
-    rowCountLabel.textContent = (shown === total) ? ('전체 ' + total + '개사') : (shown + '개 표시 중 · 전체 ' + total + '개사');
+    rowCountLabel.textContent = (shown === scopedTotal) ? ('전체 ' + scopedTotal + '개사') : (shown + '개 표시 중 · 전체 ' + scopedTotal + '개사');
   }
 
   function onTableClick(e){
