@@ -623,7 +623,16 @@
   .compose-input { height: 42px; }
   .compose-textarea { min-height: 160px; line-height: 1.6; resize: vertical; }
 
-  .readonly-text { color: var(--text); font-size: 13.5px; }
+  /* .cell-input(취합현황 편집칸)과 같은 32px 높이 리듬을 맞춰서, 입력칸이 없는
+     자료제출 탭의 행도 취합현황 탭과 똑같은 간격으로 보이게 해요. */
+  .readonly-text {
+    display: inline-flex;
+    align-items: center;
+    height: 32px;
+    line-height: 32px;
+    color: var(--text);
+    font-size: 13.5px;
+  }
 
   .mini-gauge { display: flex; align-items: center; gap: 8px; min-width: 92px; }
   .mini-gauge-track { flex: 1; height: 6px; background: #edf2f7; border-radius: 999px; overflow: hidden; }
