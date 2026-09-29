@@ -179,33 +179,42 @@ function rowToArray(row, existingArr) {
   });
 }
 
+// syncFromDrive()는 회차 전체 동기화 내내 스크립트 잠금을 붙잡고 있다가, 기업마다
+// upsertRow()를 반복 호출해요. upsertRow()가 매번 또 자기 잠금을 새로 걸려고 하면, 이미
+// 자기 자신이 쥐고 있는 잠금을 다시 기다리는 꼴이 돼서(그 사이 다른 저장 작업이라도 끼면)
+// "Lock timeout" 예외가 나요. 그래서 실제 로직은 잠금 없는 upsertRowUnlocked로 빼두고,
+// syncFromDrive처럼 "이미 바깥에서 잠금을 쥐고 있는 호출부"는 이걸 직접 쓰게 해요.
+function upsertRowUnlocked(row, user) {
+  var sheet = getSheet();
+  var values = sheet.getDataRange().getValues();
+  var idCol = HEADERS.indexOf('id');
+  var rowIndex = -1;
+  for (var i = 1; i < values.length; i++) {
+    if (values[i][idCol] === row.id) {
+      rowIndex = i + 1;
+      break;
+    }
+  }
+  var existingArr = rowIndex !== -1 ? values[rowIndex - 1] : null;
+  var arr = rowToArray(row, existingArr);
+  if (rowIndex === -1) {
+    sheet.appendRow(arr);
+  } else {
+    sheet.getRange(rowIndex, 1, 1, HEADERS.length).setValues([arr]);
+  }
+  var companyCol = HEADERS.indexOf('company');
+  var company = arr[companyCol];
+  if (rowIndex === -1) ensureCompanyExists(company, arr[HEADERS.indexOf('region')]);
+  var detail = existingArr ? diffRowSummary(existingArr, arr) : '신규 등록';
+  if (existingArr && !detail) detail = '변경 없음';
+  appendLog(user, 'upsert', row.id, company, detail);
+}
+
 function upsertRow(row, user) {
   var lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
-    var sheet = getSheet();
-    var values = sheet.getDataRange().getValues();
-    var idCol = HEADERS.indexOf('id');
-    var rowIndex = -1;
-    for (var i = 1; i < values.length; i++) {
-      if (values[i][idCol] === row.id) {
-        rowIndex = i + 1;
-        break;
-      }
-    }
-    var existingArr = rowIndex !== -1 ? values[rowIndex - 1] : null;
-    var arr = rowToArray(row, existingArr);
-    if (rowIndex === -1) {
-      sheet.appendRow(arr);
-    } else {
-      sheet.getRange(rowIndex, 1, 1, HEADERS.length).setValues([arr]);
-    }
-    var companyCol = HEADERS.indexOf('company');
-    var company = arr[companyCol];
-    if (rowIndex === -1) ensureCompanyExists(company, arr[HEADERS.indexOf('region')]);
-    var detail = existingArr ? diffRowSummary(existingArr, arr) : '신규 등록';
-    if (existingArr && !detail) detail = '변경 없음';
-    appendLog(user, 'upsert', row.id, company, detail);
+    upsertRowUnlocked(row, user);
   } finally {
     lock.releaseLock();
   }

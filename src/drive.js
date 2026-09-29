@@ -185,7 +185,9 @@ function syncRoundFolder(round, sessionCount, keywordMap, sessionNums, startTime
         round: roundName,
         folderId: info.id || ''
       };
-      upsertRow(newRow);
+      // syncFromDrive()가 이미 전체 동기화 동안 잠금을 쥐고 있어서(Lock timeout 방지),
+      // 여기서는 잠금을 또 걸지 않는 버전을 써요.
+      upsertRowUnlocked(newRow);
       created++;
     } else {
       var existingArr = values[rowIndex];
@@ -212,7 +214,7 @@ function syncRoundFolder(round, sessionCount, keywordMap, sessionNums, startTime
         round: roundName,
         folderId: info.id || existing.folderId || ''
       };
-      upsertRow(updatedRow);
+      upsertRowUnlocked(updatedRow);
       matched++;
     }
   }

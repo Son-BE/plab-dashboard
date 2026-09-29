@@ -38,28 +38,25 @@ function findCompanyByName(name) {
 
 // rows 시트나 드라이브 동기화에서 처음 보는 기업이 나타났을 때 자동으로 stub 레코드를
 // 만들어준다. 사람이 직접 한 액션이 아니라서 로그는 남기지 않는다.
+// 유일한 호출부인 sheet.js의 upsertRowUnlocked()가 항상 이미 스크립트 잠금을 쥔 채로
+// 부르기 때문에(upsertRow() 자신의 잠금 또는 syncFromDrive()의 잠금), 여기서 또 잠금을
+// 걸면 스스로 쥐고 있는 잠금을 다시 기다리다 타임아웃 나는 문제가 생긴다 — 그래서 이
+// 함수는 잠금을 걸지 않고, 호출부의 잠금에 기대어 안전하게 동작한다.
 function ensureCompanyExists(name, region) {
   name = normalizeCompanyName(name);
   if (!name) return;
   if (findCompanyByName(name)) return;
-  var lock = LockService.getScriptLock();
-  lock.waitLock(10000);
-  try {
-    if (findCompanyByName(name)) return;
-    var now = new Date().toISOString();
-    var sheet = getCompanySheet();
-    var arr = COMPANY_HEADERS.map(function (h) {
-      if (h === 'id') return Utilities.getUuid();
-      if (h === 'name') return name;
-      if (h === 'region') return region || '';
-      if (h === 'status') return 'active';
-      if (h === 'createdAt' || h === 'updatedAt') return now;
-      return '';
-    });
-    sheet.appendRow(arr);
-  } finally {
-    lock.releaseLock();
-  }
+  var now = new Date().toISOString();
+  var sheet = getCompanySheet();
+  var arr = COMPANY_HEADERS.map(function (h) {
+    if (h === 'id') return Utilities.getUuid();
+    if (h === 'name') return name;
+    if (h === 'region') return region || '';
+    if (h === 'status') return 'active';
+    if (h === 'createdAt' || h === 'updatedAt') return now;
+    return '';
+  });
+  sheet.appendRow(arr);
 }
 
 function companyToArray(company, existingArr) {
