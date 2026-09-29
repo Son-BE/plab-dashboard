@@ -556,6 +556,18 @@
     gap: 6px;
   }
 
+  /* 기업명이 길면 줄바꿈되면서 그 행만 유독 높아져서 표 전체가 들쭉날쭉해 보이는 문제 —
+     한 줄로 말줄임(ellipsis) 처리해서 모든 행 높이를 균일하게 맞춰요. 필요하면 title
+     속성(브라우저 기본 툴팁)으로 전체 이름을 볼 수 있어요. */
+  .company-cell > .readonly-text,
+  .company-cell > .cell-input.company-input {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .cell-input {
     width: 100%;
     min-width: 70px;
@@ -851,12 +863,20 @@
     font-size: 12px;
   }
 
-  /* 관리자 전용 이슈 상태 수동 지정 select — 기존 읽기 전용 배지와 같은 모양으로 보이게 */
+  /* 관리자 전용 이슈 상태 수동 지정 select — 기존 읽기 전용 배지와 같은 모양으로 보이게.
+     select는 브라우저마다 inline-flex를 제대로 안 따라서(세로 높이가 제각각이라 표 안에서
+     줄이 들쭉날쭉해 보임), flex 대신 고정 height·line-height로 직접 정렬해요. */
   select.flag-badge {
+    display: inline-block;
+    height: 26px;
+    line-height: 24px;
+    padding: 0 8px;
     border: none;
     cursor: pointer;
     font: inherit;
+    font-size: 12px;
     font-weight: 700;
+    vertical-align: middle;
     appearance: auto;
   }
 
@@ -1079,7 +1099,6 @@
     </div>
   </section>
 
-  <p class="subtitle" id="last-sync-label" style="margin:-8px 0 0;" hidden></p>
   <p class="subtitle" id="last-digest-label" style="margin:-8px 0 0;" hidden></p>
   <p class="subtitle" id="upload-company-banner" style="margin:-8px 0 0;" hidden></p>
 
@@ -1337,7 +1356,7 @@
   var appRoot, statsGrid, quickPanelsEl, rowsBody, tableHeadEl, rowCountLabel, searchInput, regionNavEl, roundNavEl, stepMessageEl, filterStatus, filterFlag,
       addRowBtn, clearExamplesBtn, regionListEl, saveDot, saveText, refreshBtn, setupBanner, setupUrlInput, setupSaveBtn,
       driveSyncBtn, regionSidebarSection, loginScreen, loginForm, loginUsername, loginPassword, loginError, loginSubmit,
-      roleBadge, logoutBtn, lastSyncLabel, lastDigestLabel, exportExcelBtn, sessionCountInput,
+      roleBadge, logoutBtn, lastDigestLabel, exportExcelBtn, sessionCountInput,
       sessionCountSaveBtn, stepOpenDateInput,
       stepOpenDateSaveBtn, changeLogBtn, changeLogBanner, changeLogBody, changeLogRefreshBtn, changeLogCloseBtn,
       flagCautionInput, flagAlertInput, flagIssueInput, flagThresholdsSaveBtn,
@@ -1927,9 +1946,9 @@
       return '<input class="cell-input' + (opts.extraClass ? ' ' + opts.extraClass : '') + '" type="' + opts.type + '"' +
         (opts.list ? ' list="' + opts.list + '"' : '') +
         (opts.inputmode ? ' inputmode="' + opts.inputmode + '"' : '') +
-        ' data-field="' + opts.field + '" placeholder="' + escapeHtml(opts.placeholder || '') + '" value="' + escapeHtml(opts.value || '') + '">';
+        ' data-field="' + opts.field + '" placeholder="' + escapeHtml(opts.placeholder || '') + '" title="' + escapeHtml(opts.value || '') + '" value="' + escapeHtml(opts.value || '') + '">';
     }
-    return '<span class="readonly-text">' + escapeHtml(opts.value || '') + '</span>';
+    return '<span class="readonly-text" title="' + escapeHtml(opts.value || '') + '">' + escapeHtml(opts.value || '') + '</span>';
   }
 
   function rowProgress(row){
@@ -2019,7 +2038,7 @@
       '<td data-label="협약일자"><span class="readonly-text">' + escapeHtml(r.date || '') + '</span></td>' +
       '<td data-label="폴더NC"><span class="readonly-text">' + escapeHtml(r.folderNc || '') + '</span></td>' +
       '<td data-label="권역"><span class="readonly-text">' + escapeHtml(r.region || '') + '</span></td>' +
-      '<td class="sticky-col company-cell"><span class="readonly-text">' + escapeHtml(r.company || '') + '</span></td>' +
+      '<td class="sticky-col company-cell"><span class="readonly-text" title="' + escapeHtml(r.company || '') + '">' + escapeHtml(r.company || '') + '</span></td>' +
       items.map(function(it){ return '<td class="center" data-label="' + escapeHtml(it.label) + '">' + uploadToggleHTML(r.id, it.field, it.checked, it.available) + '</td>'; }).join('') +
       '<td class="center" data-label="완료">' + autoCellHTML(uploadComplete, true) + '</td>' +
     '</tr>';
@@ -2555,7 +2574,6 @@
     roleBadge.hidden = false;
     roleBadge.textContent = roleLabel();
     logoutBtn.hidden = false;
-    renderLastSyncLabel(showCollectionControls);
     renderLastDigestLabel(showCollectionControls);
   }
 
@@ -2569,17 +2587,6 @@
     var mi = String(d.getMinutes()).padStart(2, '0');
     return (d.getMonth() + 1) + '월 ' + d.getDate() + '일 ' + hh + ':' + mi;
   }
-  function renderLastSyncLabel(show){
-    if(!lastSyncLabel) return;
-    if(!show || !STATE.lastSync){
-      lastSyncLabel.hidden = true;
-      return;
-    }
-    lastSyncLabel.hidden = false;
-    lastSyncLabel.textContent = '마지막 드라이브 동기화: ' + formatSyncTime(STATE.lastSync.at) +
-      (STATE.lastSync.summary ? (' · ' + STATE.lastSync.summary) : '');
-  }
-
   // 지연 기업 알림 메일(관리자 요약 + 기업별 리마인더)이 마지막으로 언제, 어떤 결과로
   // 실행됐는지 관리자에게만 보여줘요. apps-script-code.gs의 setupDailyDigestTrigger로
   // 걸어두면 매일 새벽 자동으로 갱신돼요. 기업 리마인더는 COMPANY_REMINDER_ENABLED가
@@ -2840,7 +2847,6 @@
       setSyncStatus('synced');
       renderTableHeader();
       renderAll();
-      renderLastSyncLabel(isAdmin() && viewMode === 'collect');
       renderLastDigestLabel(isAdmin() && viewMode === 'collect');
     }).catch(function(err){
       console.error(err);
@@ -3444,7 +3450,6 @@
     setupUrlInput = document.getElementById('setup-url-input');
     setupSaveBtn = document.getElementById('setup-save-btn');
     driveSyncBtn = document.getElementById('drive-sync-btn');
-    lastSyncLabel = document.getElementById('last-sync-label');
     lastDigestLabel = document.getElementById('last-digest-label');
     exportExcelBtn = document.getElementById('export-excel-btn');
     sessionCountInput = document.getElementById('session-count-input');
