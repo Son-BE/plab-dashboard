@@ -1,6 +1,11 @@
 var SHEET_NAME = 'rows';
 var LOG_SHEET_NAME = 'log';
 var LOG_HEADERS = ['at', 'username', 'role', 'action', 'rowId', 'company', 'detail'];
+var COMPANY_SHEET_NAME = 'companies';
+var COMPANY_HEADERS = [
+  'id', 'name', 'region', 'contactName', 'contactPhone', 'contactEmail',
+  'businessNo', 'status', 'memo', 'createdAt', 'updatedAt'
+];
 var MAX_SESSIONS = 12;
 var DEFAULT_ROUND = '1회차';
 var CURRENT_SYNC_ROUND = '1회차';

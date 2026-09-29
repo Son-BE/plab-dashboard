@@ -198,6 +198,7 @@ function upsertRow(row, user) {
     }
     var companyCol = HEADERS.indexOf('company');
     var company = arr[companyCol];
+    if (rowIndex === -1) ensureCompanyExists(company, arr[HEADERS.indexOf('region')]);
     var detail = existingArr ? diffRowSummary(existingArr, arr) : '신규 등록';
     if (existingArr && !detail) detail = '변경 없음';
     appendLog(user, 'upsert', row.id, company, detail);
