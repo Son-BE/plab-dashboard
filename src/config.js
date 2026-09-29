@@ -7,7 +7,10 @@ var COMPANY_HEADERS = [
   'businessNo', 'status', 'memo', 'createdAt', 'updatedAt'
 ];
 var ROUND_SHEET_NAME = 'rounds';
-var ROUND_HEADERS = ['id', 'name', 'startDate', 'endDate', 'status', 'description', 'createdAt', 'updatedAt'];
+// driveFolderId: 이 회차 전용 구글드라이브 루트 폴더 ID. syncFromDrive()가 이 값이 채워진
+// 회차만 돌면서 그 폴더 밑 기업들을 이 회차 이름으로 동기화해요(맨 끝에 추가 — 기존 배포된
+// 시트의 컬럼 위치가 안 깨지도록).
+var ROUND_HEADERS = ['id', 'name', 'startDate', 'endDate', 'status', 'description', 'createdAt', 'updatedAt', 'driveFolderId'];
 var MAX_SESSIONS = 12;
 var DEFAULT_ROUND = '1회차';
 var CURRENT_SYNC_ROUND = '1회차';

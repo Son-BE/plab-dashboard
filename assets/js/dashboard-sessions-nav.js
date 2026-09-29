@@ -296,19 +296,44 @@
     }).join('');
   }
 
-  function renderRegionNav(){
+  // 권역/회차 목록·유효성 검증을 각자 렌더 함수 안에만 두면, 한쪽이 먼저 실행될 때
+  // 상대 필터가 아직 검증 전(=구식 값)인 상태로 카운트를 계산하게 돼요 — 예를 들어
+  // renderRegionNav()가 matchesRound()로 권역별 개수를 셀 때, filters.round가 그 시점에
+  // 아직 유효하지 않은 값이면 모든 권역이 0으로 잘못 계산된 채 그려지고, 그 다음에야
+  // renderRoundNav()가 filters.round를 정상값으로 되돌려요(그마저도 한 렌더 늦게). 그래서
+  // 두 렌더 함수 모두 시작할 때 "내 필터"뿐 아니라 "상대 필터"까지 같이 검증해요 — 어느
+  // 쪽이 먼저 호출되든 카운트를 계산하는 시점엔 둘 다 이미 정상값이 되도록.
+  function validateRegionFilter(){
     var used = [];
     STATE.rows.forEach(function(r){ var k = r.region || '미지정'; if(used.indexOf(k) === -1) used.push(k); });
     var all = REGION_PRESETS.slice();
     used.forEach(function(r){ if(r !== '미지정' && all.indexOf(r) === -1) all.push(r); });
     if(used.indexOf('미지정') !== -1) all.push('미지정');
+    if(filters.region !== 'all' && all.indexOf(filters.region) === -1) filters.region = 'all';
+    return all;
+  }
+
+  function validateRoundFilter(){
+    var used = [];
+    STATE.rows.forEach(function(r){ var k = r.round || DEFAULT_ROUND; if(used.indexOf(k) === -1) used.push(k); });
+    var all = ROUND_PRESETS.slice();
+    used.forEach(function(r){ if(all.indexOf(r) === -1) all.push(r); });
+    // 회차 마스터(프로그램 탭에서 관리)에만 있고 아직 기업이 하나도 없는 회차도 미리 보이게 해요.
+    STATE.rounds.forEach(function(r){ if(r.name && all.indexOf(r.name) === -1) all.push(r.name); });
+    all.sort(); // "1회차","2회차"... 순서대로 (문자열 정렬이라 10회차 이상이면 따로 손봐야 할 수 있어요)
+    if(filters.round !== 'all' && all.indexOf(filters.round) === -1) filters.round = 'all';
+    return all;
+  }
+
+  function renderRegionNav(){
+    validateRoundFilter();
+    var all = validateRegionFilter();
 
     // 자동완성용 datalist에는 "미지정"은 굳이 안 넣어도 돼요 (직접 입력할 값이 아니라서).
     regionListEl.innerHTML = all.filter(function(r){ return r !== '미지정'; })
       .map(function(r){ return '<option value="' + escapeHtml(r) + '">'; }).join('');
 
     var current = filters.region;
-    if(current !== 'all' && all.indexOf(current) === -1){ filters.region = 'all'; current = 'all'; }
 
     // 회차 필터·검색·상태·이슈 조건은 유지한 채, "권역"만 무시하고 센 개수예요
     // (다른 사이드바를 고를 때 이 목록의 개수도 같이 갱신되도록).
@@ -322,17 +347,10 @@
   }
 
   function renderRoundNav(){
-    var used = [];
-    STATE.rows.forEach(function(r){ var k = r.round || DEFAULT_ROUND; if(used.indexOf(k) === -1) used.push(k); });
-    var all = ROUND_PRESETS.slice();
-    used.forEach(function(r){ if(all.indexOf(r) === -1) all.push(r); });
-    // 회차 마스터(프로그램 탭에서 관리)에만 있고 아직 기업이 하나도 없는 회차도 미리 보이게 해요.
-    STATE.rounds.forEach(function(r){ if(r.name && all.indexOf(r.name) === -1) all.push(r.name); });
-    all.sort(); // "1회차","2회차"... 순서대로 (문자열 정렬이라 10회차 이상이면 따로 손봐야 할 수 있어요)
+    validateRegionFilter();
+    var all = validateRoundFilter();
 
     var current = filters.round;
-    if(current !== 'all' && all.indexOf(current) === -1){ filters.round = 'all'; current = 'all'; }
-
     var baseRows = STATE.rows.filter(function(r){ return matchesCommon(r) && matchesRegion(r); });
     var counts = {};
     baseRows.forEach(function(r){ var k = r.round || DEFAULT_ROUND; counts[k] = (counts[k] || 0) + 1; });

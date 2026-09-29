@@ -67,7 +67,7 @@
       navUsersBtn, usersViewEl, usersListEl, newUserUsernameInput, newUserPasswordInput, newUserRoleInput, newUserRegionInput, addUserBtn,
       navClientsBtn, clientsViewEl, clientsListEl, clientSearchInput, clientRegionFilterInput, clientStatusFilterInput,
       newClientNameInput, newClientRegionInput, newClientContactNameInput, newClientContactPhoneInput, newClientContactEmailInput, newClientBusinessNoInput, addClientBtn,
-      navProgramBtn, programViewEl, roundsListEl, newRoundNameInput, newRoundStartInput, newRoundEndInput, newRoundStatusInput, addRoundBtn,
+      navProgramBtn, programViewEl, roundsListEl, newRoundNameInput, newRoundStartInput, newRoundEndInput, newRoundStatusInput, newRoundDriveFolderInput, addRoundBtn,
       curriculumListEl, curriculumSessionCountEl, saveCurriculumBtn,
       navReportBtn, reportViewEl, roundComparisonBodyEl, regionComparisonBodyEl, exportReportBtn;
 

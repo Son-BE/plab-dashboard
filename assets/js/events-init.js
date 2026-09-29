@@ -572,7 +572,8 @@
             startDate: detailEl.querySelector('.round-field-startDate').value,
             endDate: detailEl.querySelector('.round-field-endDate').value,
             status: detailEl.querySelector('.round-field-status').value,
-            description: detailEl.querySelector('.round-field-description').value
+            description: detailEl.querySelector('.round-field-description').value,
+            driveFolderId: detailEl.querySelector('.round-field-driveFolderId').value
           };
           var existing = STATE.rounds.find(function(r){ return r.id === id; });
           if(existing) round.name = existing.name;
@@ -614,7 +615,8 @@
         name: name,
         startDate: newRoundStartInput.value,
         endDate: newRoundEndInput.value,
-        status: newRoundStatusInput.value
+        status: newRoundStatusInput.value,
+        driveFolderId: newRoundDriveFolderInput.value
       };
       addRoundBtn.disabled = true;
       apiPost('upsertRound', { round:round })
@@ -624,6 +626,7 @@
           newRoundStartInput.value = '';
           newRoundEndInput.value = '';
           newRoundStatusInput.value = 'recruiting';
+          newRoundDriveFolderInput.value = '';
           STATE.rounds = data.rounds || [];
           renderRoundsList();
           renderRoundNav();
@@ -767,6 +770,7 @@
     newRoundStartInput = document.getElementById('new-round-start-input');
     newRoundEndInput = document.getElementById('new-round-end-input');
     newRoundStatusInput = document.getElementById('new-round-status-input');
+    newRoundDriveFolderInput = document.getElementById('new-round-drive-folder-input');
     addRoundBtn = document.getElementById('add-round-btn');
     curriculumListEl = document.getElementById('curriculum-list');
     curriculumSessionCountEl = document.getElementById('curriculum-session-count');
