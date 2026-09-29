@@ -462,6 +462,68 @@
     });
   }
 
+  // ── 보고서(회차별·권역별 비교) 엑셀 내보내기 ─────────────────────────────
+  // reportRoundGroups()/reportRegionGroups()(dashboard-sessions-nav.js)가 만든 그룹을
+  // 화면 표와 똑같은 기준으로 시트 두 개에 담아요. 서식은 기존 엑셀 인프라
+  // (styleTitleRow/styleHeaderRow) 그대로 재사용.
+  var REPORT_COLUMN_DEFS = [
+    { header: '이름', key: 'name', width: 14 },
+    { header: '기업 수', key: 'total', width: 10 },
+    { header: '완료율(%)', key: 'completeRate', width: 11 },
+    { header: '회차 진행률(%)', key: 'sessionRate', width: 13 },
+    { header: '수행계획서', key: 'planCount', width: 11 },
+    { header: '결과보고서', key: 'reportCount', width: 11 },
+    { header: '문제', key: 'issueCount', width: 8 },
+    { header: '경고', key: 'alertCount', width: 8 },
+    { header: '주의', key: 'cautionCount', width: 8 }
+  ];
+
+  function buildReportSheet(workbook, sheetName, titleLabel, groups){
+    var sheet = workbook.addWorksheet(sheetName, { views: [{ state: 'frozen', ySplit: 2 }] });
+    sheet.columns = REPORT_COLUMN_DEFS;
+    sheet.spliceRows(1, 0, []);
+    styleTitleRow(sheet, REPORT_COLUMN_DEFS.length).getCell(1).value =
+      titleLabel + ' (기준일: ' + new Date().toISOString().slice(0, 10) + ')';
+    styleHeaderRow(sheet.getRow(2));
+    groups.forEach(function(g){
+      var s = computeStats(g.rows);
+      sheet.addRow({
+        name: g.name, total: s.total, completeRate: s.completeRate, sessionRate: s.sessionRate,
+        planCount: s.planCount, reportCount: s.reportCount,
+        issueCount: s.issueCount, alertCount: s.alertCount, cautionCount: s.cautionCount
+      }).eachCell(function(cell, colNumber){
+        cell.alignment = { vertical: 'middle', horizontal: colNumber === 1 ? 'left' : 'center' };
+      });
+    });
+    sheet.autoFilter = { from: { row: 2, column: 1 }, to: { row: 2, column: REPORT_COLUMN_DEFS.length } };
+    return sheet;
+  }
+
+  function exportReportToExcel(){
+    return ensureExcelJSLoaded().then(function(){
+      var workbook = new ExcelJS.Workbook();
+      workbook.creator = '멘토링 트래커';
+      workbook.created = new Date();
+      buildReportSheet(workbook, '회차별 비교', '멘토링 프로그램 회차별 비교', reportRoundGroups());
+      buildReportSheet(workbook, '권역별 비교', '멘토링 프로그램 권역별 비교', reportRegionGroups());
+
+      var datePart = new Date().toISOString().slice(0,10).replace(/-/g, '');
+      var filename = '보고서_' + datePart + '.xlsx';
+
+      return workbook.xlsx.writeBuffer().then(function(buffer){
+        var blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+      });
+    }).catch(function(err){
+      console.error('[보고서 내보내기] 실패:', err);
+      alert(err && err.message ? err.message : '엑셀 파일을 만드는 중 문제가 생겼어요.');
+    });
+  }
+
   function shouldGateUpload(){
     return viewMode === 'upload' && isRegionScopedViewer() && !uploadCompanySelection;
   }

@@ -65,7 +65,8 @@
       navClientsBtn, clientsViewEl, clientsListEl, clientSearchInput, clientRegionFilterInput, clientStatusFilterInput,
       newClientNameInput, newClientRegionInput, newClientContactNameInput, newClientContactPhoneInput, newClientContactEmailInput, newClientBusinessNoInput, addClientBtn,
       navProgramBtn, programViewEl, roundsListEl, newRoundNameInput, newRoundStartInput, newRoundEndInput, newRoundStatusInput, addRoundBtn,
-      curriculumListEl, curriculumSessionCountEl, saveCurriculumBtn;
+      curriculumListEl, curriculumSessionCountEl, saveCurriculumBtn,
+      navReportBtn, reportViewEl, roundComparisonBodyEl, regionComparisonBodyEl, exportReportBtn;
 
   function roleLabel(){
     if(AUTH.role === 'admin') return '관리자 계정';

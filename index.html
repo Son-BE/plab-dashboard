@@ -32,7 +32,7 @@
 
     <div class="nav-group">
       <div class="sidebar-title">리포트</div>
-      <button class="nav-item" type="button" disabled><span class="icon"></span>보고서<span class="nav-item-soon">준비 중</span></button>
+      <button class="nav-item" type="button" id="nav-report"><span class="icon"></span>보고서</button>
       <button class="nav-item" type="button" id="nav-upload"><span class="icon"></span>자료 제출</button>
       <button class="nav-item" type="button" id="nav-notify"><span class="icon"></span>알림 센터</button>
     </div>
@@ -82,6 +82,46 @@
 
   <section class="main-grid" id="quick-panels" aria-label="처리 필요 항목"></section>
   </div>
+
+  <section id="report-view" hidden aria-label="보고서">
+    <h2 style="margin:0 0 18px; font-size:22px; letter-spacing:-0.03em;">보고서</h2>
+
+    <section class="settings-card" style="margin-bottom:18px;">
+      <div class="settings-header">
+        <h3 class="settings-title">회차별 비교</h3>
+      </div>
+      <div class="table-wrap" style="max-height:none;">
+        <table>
+          <thead>
+            <tr>
+              <th>회차</th><th>기업 수</th><th>완료율</th><th>회차 진행률</th>
+              <th>수행계획서</th><th>결과보고서</th><th>문제</th><th>경고</th><th>주의</th>
+            </tr>
+          </thead>
+          <tbody id="round-comparison-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="settings-card" style="margin-bottom:18px;">
+      <div class="settings-header">
+        <h3 class="settings-title">권역별 비교</h3>
+      </div>
+      <div class="table-wrap" style="max-height:none;">
+        <table>
+          <thead>
+            <tr>
+              <th>권역</th><th>기업 수</th><th>완료율</th><th>회차 진행률</th>
+              <th>수행계획서</th><th>결과보고서</th><th>문제</th><th>경고</th><th>주의</th>
+            </tr>
+          </thead>
+          <tbody id="region-comparison-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <button class="btn btn-ghost" id="export-report-btn" type="button">📊 엑셀로 내보내기</button>
+  </section>
 
   <section id="program-view" hidden aria-label="프로그램">
     <h2 style="margin:0 0 18px; font-size:22px; letter-spacing:-0.03em;">프로그램</h2>

@@ -231,6 +231,63 @@
       '</div>';
   }
 
+  // ── 보고서: 회차별·권역별 비교 ──────────────────────────────────────────
+  // computeStats(rows)가 이미 범용이라(어떤 row 부분집합이든 받아 완료율·회차 진행률·서류
+  // 제출·이슈 건수를 계산) 그룹별로 한 번씩 돌리기만 하면 돼요 — 새 집계 로직 불필요.
+  function comparisonRowHTML(label, rows){
+    var s = computeStats(rows);
+    return '<tr>' +
+      '<td>' + escapeHtml(label) + '</td>' +
+      '<td>' + s.total + '개사</td>' +
+      '<td>' + s.completeRate + '%</td>' +
+      '<td>' + s.sessionRate + '%</td>' +
+      '<td>' + s.planCount + '</td>' +
+      '<td>' + s.reportCount + '</td>' +
+      '<td>' + s.issueCount + '</td>' +
+      '<td>' + s.alertCount + '</td>' +
+      '<td>' + s.cautionCount + '</td>' +
+    '</tr>';
+  }
+
+  // 회차별/권역별 비교는 사이드바에서 지금 어떤 필터가 선택돼있든 상관없이 항상 전체
+  // 기준으로 계산해요 — 필터에 좌우되면 "비교"라는 목적 자체가 흐려지기 때문이에요.
+  // 화면 렌더링과 엑셀 내보내기(table-view.js의 exportReportToExcel)가 같은 그룹핑을
+  // 쓰도록 여기 한 곳에 모아뒀어요.
+  function reportRoundGroups(){
+    var usedRounds = [];
+    STATE.rows.forEach(function(r){ var k = r.round || DEFAULT_ROUND; if(usedRounds.indexOf(k) === -1) usedRounds.push(k); });
+    var allRounds = ROUND_PRESETS.slice();
+    usedRounds.forEach(function(r){ if(allRounds.indexOf(r) === -1) allRounds.push(r); });
+    STATE.rounds.forEach(function(r){ if(r.name && allRounds.indexOf(r.name) === -1) allRounds.push(r.name); });
+    allRounds.sort();
+    return allRounds.map(function(name){
+      return { name: name, rows: STATE.rows.filter(function(r){ return (r.round || DEFAULT_ROUND) === name; }) };
+    });
+  }
+
+  function reportRegionGroups(){
+    var usedRegions = [];
+    STATE.rows.forEach(function(r){ var k = r.region || '미지정'; if(usedRegions.indexOf(k) === -1) usedRegions.push(k); });
+    var allRegions = REGION_PRESETS.slice();
+    usedRegions.forEach(function(r){ if(allRegions.indexOf(r) === -1) allRegions.push(r); });
+    return allRegions.map(function(name){
+      return { name: name, rows: STATE.rows.filter(function(r){ return (r.region || '미지정') === name; }) };
+    });
+  }
+
+  function renderReportView(){
+    if(!roundComparisonBodyEl || !regionComparisonBodyEl) return;
+    var roundGroups = reportRoundGroups();
+    roundComparisonBodyEl.innerHTML = roundGroups.length
+      ? roundGroups.map(function(g){ return comparisonRowHTML(g.name, g.rows); }).join('')
+      : '<tr class="empty-row"><td colspan="9">표시할 회차가 없어요.</td></tr>';
+
+    var regionGroups = reportRegionGroups();
+    regionComparisonBodyEl.innerHTML = regionGroups.length
+      ? regionGroups.map(function(g){ return comparisonRowHTML(g.name, g.rows); }).join('')
+      : '<tr class="empty-row"><td colspan="9">표시할 권역이 없어요.</td></tr>';
+  }
+
   function buildNavHTML(items, activeKey, dataAttr){
     return items.map(function(it){
       return '<button type="button" class="region-nav-item' + (it.key === activeKey ? ' active' : '') + '" data-' + dataAttr + '="' + escapeHtml(it.key) + '">' +

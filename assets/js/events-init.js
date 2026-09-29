@@ -17,6 +17,7 @@
     }
     if(currentPage === 'sessions') renderSessionView();
     if(currentPage === 'notify') renderNotifyView();
+    if(currentPage === 'report') renderReportView();
   }
 
   function setPage(page){
@@ -29,6 +30,7 @@
     if(usersViewEl) usersViewEl.hidden = page !== 'users';
     if(clientsViewEl) clientsViewEl.hidden = page !== 'clients';
     if(programViewEl) programViewEl.hidden = page !== 'program';
+    if(reportViewEl) reportViewEl.hidden = page !== 'report';
     if(navDashboardBtn) navDashboardBtn.classList.toggle('active', page === 'dashboard');
     if(navSessionsBtn) navSessionsBtn.classList.toggle('active', page === 'sessions');
     if(navCollectBtn) navCollectBtn.classList.toggle('active', page === 'collect');
@@ -38,6 +40,7 @@
     if(navUsersBtn) navUsersBtn.classList.toggle('active', page === 'users');
     if(navClientsBtn) navClientsBtn.classList.toggle('active', page === 'clients');
     if(navProgramBtn) navProgramBtn.classList.toggle('active', page === 'program');
+    if(navReportBtn) navReportBtn.classList.toggle('active', page === 'report');
     if(page === 'dashboard'){ renderStats(); renderQuickPanels(); }
     if(page === 'sessions') renderSessionView();
     if(page === 'collect' || page === 'upload') setViewMode(page);
@@ -46,6 +49,7 @@
     if(page === 'users') fetchUsers();
     if(page === 'clients') fetchClients();
     if(page === 'program') renderProgramView();
+    if(page === 'report') renderReportView();
   }
 
   // 로그인한 계정 권한 + 현재 탭(취합현황/업로드현황)에 따라 편집용 버튼/문구를 보이거나 숨겨요.
@@ -262,6 +266,17 @@
       exportToExcel().finally(function(){
         exportExcelBtn.disabled = false;
         exportExcelBtn.textContent = originalLabel;
+      });
+    });
+
+    if(navReportBtn) navReportBtn.addEventListener('click', function(){ setPage('report'); });
+    if(exportReportBtn) exportReportBtn.addEventListener('click', function(){
+      exportReportBtn.disabled = true;
+      var originalLabel = exportReportBtn.textContent;
+      exportReportBtn.textContent = '만드는 중…';
+      exportReportToExcel().finally(function(){
+        exportReportBtn.disabled = false;
+        exportReportBtn.textContent = originalLabel;
       });
     });
 
@@ -756,6 +771,11 @@
     curriculumListEl = document.getElementById('curriculum-list');
     curriculumSessionCountEl = document.getElementById('curriculum-session-count');
     saveCurriculumBtn = document.getElementById('save-curriculum-btn');
+    navReportBtn = document.getElementById('nav-report');
+    reportViewEl = document.getElementById('report-view');
+    roundComparisonBodyEl = document.getElementById('round-comparison-body');
+    regionComparisonBodyEl = document.getElementById('region-comparison-body');
+    exportReportBtn = document.getElementById('export-report-btn');
     navDashboardBtn = document.getElementById('nav-dashboard');
     navSessionsBtn = document.getElementById('nav-sessions');
     dashboardViewEl = document.getElementById('dashboard-view');
