@@ -19,13 +19,25 @@ function ensureRoundHasDefaultFolder() {
   upsertRound({ name: CURRENT_SYNC_ROUND, driveFolderId: DRIVE_FOLDER_ID, status: 'ongoing' }, null);
 }
 
-function syncFromDrive() {
+// onlyRoundName: 지정하면(그리고 'all'이 아니면) 그 회차 폴더 하나만 동기화해요. 사이드바에서
+// 특정 Step을 보고 있는 상태로 "드라이브에서 불러오기"를 누르면, 다른 회차(특히 기업 수가
+// 훨씬 많은 회차)까지 매번 같이 훑을 이유가 없어서 — 지금 보고 있는 회차만 빠르게 동기화할
+// 수 있게 해요. 안 넘기거나 'all'이면 예전처럼 등록된 회차 전부를 동기화해요.
+function syncFromDrive(onlyRoundName) {
   ensureRoundHasDefaultFolder();
-  var rounds = readRounds()
+  var allRounds = readRounds()
     .map(function (r) { return Object.assign({}, r, { driveFolderId: normalizeDriveFolderId(r.driveFolderId) }); })
     .filter(function (r) { return r.driveFolderId; });
-  if (!rounds.length) {
+  if (!allRounds.length) {
     return { error: '동기화할 회차가 없어요. 프로그램 탭에서 회차를 만들고 드라이브 폴더 ID를 입력해주세요.' };
+  }
+
+  var rounds = allRounds;
+  if (onlyRoundName && onlyRoundName !== 'all') {
+    rounds = allRounds.filter(function (r) { return r.name === onlyRoundName; });
+    if (!rounds.length) {
+      return { error: '"' + onlyRoundName + '" 회차에 드라이브 폴더 ID가 등록돼있지 않아요. 프로그램 탭에서 먼저 등록해주세요.' };
+    }
   }
 
   var lock = LockService.getScriptLock();
@@ -48,8 +60,9 @@ function syncFromDrive() {
       }
       // 다른 회차 전용 폴더가 지금 회차 폴더 밑에 우연히 중첩돼 있어도(예: 공용 상위
       // 폴더 밑에 회차별 폴더가 형제로 있는 게 아니라 실수로 안쪽에 들어간 경우) 그 안까지
-      // 잘못 훑지 않도록, 다른 회차들의 driveFolderId는 재귀 탐색에서 건너뛰어요.
-      var otherRoundFolderIds = rounds.filter(function (r) { return r.driveFolderId !== rounds[ri].driveFolderId; })
+      // 잘못 훑지 않도록, (동기화 대상이 아니더라도) 등록된 다른 모든 회차의 driveFolderId는
+      // 재귀 탐색에서 건너뛰어요.
+      var otherRoundFolderIds = allRounds.filter(function (r) { return r.driveFolderId !== rounds[ri].driveFolderId; })
         .map(function (r) { return r.driveFolderId; });
       var result = syncRoundFolder(rounds[ri], sessionCount, keywordMap, sessionNums, startTime, TIME_BUDGET_MS, otherRoundFolderIds);
       totals.foldersScanned += result.foldersScanned;

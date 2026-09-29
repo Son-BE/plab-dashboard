@@ -220,11 +220,14 @@
       if(!isAdmin()) return;
       driveSyncBtn.disabled = true;
       var originalLabel = driveSyncBtn.textContent;
+      // 사이드바에서 지금 보고 있는 회차만 동기화해요(전체 회차를 보고 있으면 등록된 회차
+      // 전부) — 다른 회차(특히 기업 수가 훨씬 많은 회차)까지 매번 같이 훑지 않게 하기 위해서.
+      var targetRound = filters.round;
       driveSyncBtn.textContent = '가져오는 중…';
       saveDot.className = 'save-dot syncing';
-      saveText.textContent = '드라이브 확인 중…';
-      console.log('[드라이브 연동] 요청 시작:', apiUrl);
-      apiPost('syncFromDrive')
+      saveText.textContent = (targetRound !== 'all' ? targetRound + ' ' : '') + '드라이브 확인 중…';
+      console.log('[드라이브 연동] 요청 시작:', apiUrl, 'round=', targetRound);
+      apiPost('syncFromDrive', { round: targetRound })
         .then(function(data){
           console.log('[드라이브 연동] 응답:', data);
           if(data && data.error === 'auth'){

@@ -60,7 +60,7 @@ function doPost(e) {
       return respond({ ok: true });
     }
     if (body.action === 'syncFromDrive') {
-      var result = syncFromDrive();
+      var result = syncFromDrive(body.round);
       recordSyncResult(result);
       return respond({ ok: true, result: result, lastSync: getLastSyncInfo() });
     }
