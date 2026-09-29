@@ -111,14 +111,10 @@ function syncRoundFolder(round, sessionCount, keywordMap, sessionNums, startTime
 
   var foldersScanned = 0, matched = 0, created = 0, skipped = 0;
 
+  // 1차: 시트만 보고 바로 판단 가능한 것(건너뛰기·폴더ID만 갱신)은 API 호출 없이 처리하고,
+  // "실제로 파일 목록을 확인해야 하는" 기업만 pending에 모아둬요.
+  var pending = [];
   for (var idx = 0; idx < companyFolders.length; idx++) {
-    if (Date.now() - startTime > TIME_BUDGET_MS) {
-      return {
-        foldersScanned: foldersScanned, matched: matched, created: created, skipped: skipped,
-        debug: '시간이 오래 걸려서 일부만 처리했어요 (전체 ' + companyFolders.length + '개 중 ' + foldersScanned + '개 확인). 이미 다 채워진 기업은 다음 실행 때 건너뛰니, "드라이브에서 불러오기"를 몇 번 더 누르면 나머지가 이어서 처리돼요.'
-      };
-    }
-
     var info = companyFolders[idx];
     foldersScanned++;
 
@@ -145,8 +141,25 @@ function syncRoundFolder(round, sessionCount, keywordMap, sessionNums, startTime
         continue;
       }
     }
+    pending.push({ info: info, rowIndex: rowIndex });
+  }
 
-    var fileNames = listDriveChildren(info.id, false).map(function (f) { return f.name; });
+  // 2차: 파일 목록 확인이 필요한 기업들만, 하나씩 순서대로 묻지 않고 한꺼번에(병렬) 물어봐요.
+  // 예전엔 기업 수만큼 드라이브 API를 순서대로 호출해서 그 왕복 시간이 그대로 쌓였는데,
+  // UrlFetchApp.fetchAll로 한 번에 보내면 네트워크 대기 시간이 거의 다 겹쳐져서 훨씬 빨라져요.
+  var fileListsById = batchListDriveFiles(pending.map(function (p) { return p.info.id; }));
+
+  for (var pi = 0; pi < pending.length; pi++) {
+    if (Date.now() - startTime > TIME_BUDGET_MS) {
+      return {
+        foldersScanned: foldersScanned, matched: matched, created: created, skipped: skipped,
+        debug: '시간이 오래 걸려서 일부만 처리했어요 (전체 ' + companyFolders.length + '개 중 ' + (companyFolders.length - pending.length + pi) + '개 확인). 이미 다 채워진 기업은 다음 실행 때 건너뛰니, "드라이브에서 불러오기"를 몇 번 더 누르면 나머지가 이어서 처리돼요.'
+      };
+    }
+
+    var info = pending[pi].info;
+    var rowIndex = pending[pi].rowIndex;
+    var fileNames = fileListsById[info.id] || [];
     var flags = {};
     keywordMap.forEach(function (k) {
       flags[k.field] = fileNames.some(function (name) {
@@ -235,6 +248,49 @@ function listDriveChildren(parentId, foldersOnly) {
     pageToken = response.nextPageToken;
   } while (pageToken);
   return results;
+}
+
+// 여러 폴더의 "파일 목록"을 한 번에 병렬로 조회해요(폴더 자체를 찾는 재귀 탐색과는 별개 —
+// 그건 폴더 개수가 적어서 순차 호출로도 충분히 빨라요). Drive 고급 서비스는 폴더 하나당
+// 호출을 순서대로 기다려야 해서, 확인해야 할 기업이 많을수록 왕복 시간이 그대로 쌓여요.
+// UrlFetchApp.fetchAll은 여러 요청을 한 번에 보내서 네트워크 대기 시간을 거의 다 겹치게
+// 만들어주기 때문에, 같은 작업이라도 훨씬 빨리 끝나요.
+function batchListDriveFiles(folderIds) {
+  var byId = {};
+  if (!folderIds.length) return byId;
+  var token = ScriptApp.getOAuthToken();
+  var BATCH_SIZE = 80; // 한 번에 너무 많이 보내면 오히려 불안정해질 수 있어서 적당히 나눠 보내요.
+  for (var start = 0; start < folderIds.length; start += BATCH_SIZE) {
+    var chunk = folderIds.slice(start, start + BATCH_SIZE);
+    var requests = chunk.map(function (id) {
+      var q = "'" + id + "' in parents and trashed = false and mimeType != '" + FOLDER_MIME + "'";
+      var url = 'https://www.googleapis.com/drive/v3/files' +
+        '?q=' + encodeURIComponent(q) +
+        '&fields=' + encodeURIComponent('files(name)') +
+        '&supportsAllDrives=true&includeItemsFromAllDrives=true&corpora=allDrives&pageSize=1000';
+      return { url: url, headers: { Authorization: 'Bearer ' + token }, muteHttpExceptions: true };
+    });
+    var responses;
+    try {
+      responses = UrlFetchApp.fetchAll(requests);
+    } catch (err) {
+      // 병렬 조회 자체가 실패하면(권한 재승인이 필요한 경우 등) 빈 목록으로 처리해서, 이번
+      // 실행에서는 해당 기업들을 "파일 없음"으로 건너뛰고 다음 실행 때 다시 시도하게 해요.
+      chunk.forEach(function (id) { byId[id] = []; });
+      continue;
+    }
+    responses.forEach(function (res, i) {
+      var id = chunk[i];
+      try {
+        if (res.getResponseCode() !== 200) { byId[id] = []; return; }
+        var data = JSON.parse(res.getContentText());
+        byId[id] = (data.files || []).map(function (f) { return f.name; });
+      } catch (e) {
+        byId[id] = [];
+      }
+    });
+  }
+  return byId;
 }
 
 // excludeFolderIds: 이 ID들과 일치하는 하위 폴더는 재귀 탐색에서 건너뛰어요. 회차별
