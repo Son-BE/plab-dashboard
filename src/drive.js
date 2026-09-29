@@ -72,12 +72,19 @@ function syncFromDrive() {
 function syncRoundFolder(round, sessionCount, keywordMap, sessionNums, startTime, TIME_BUDGET_MS, excludeFolderIds) {
   var folderId = round.driveFolderId;
   var roundName = round.name;
+  var excludeList = excludeFolderIds || [];
+  // 진단용 접두어 — folderId·exclude 목록·실제로 제외된 폴더가 몇 개였는지를 항상 결과에
+  // 남겨서, "다른 회차 폴더가 왜 안 걸러지는지" 같은 문제를 화면에서 바로 확인할 수 있게 해요.
+  function diagPrefix(companyFolders) {
+    var excludedNames = (companyFolders && companyFolders.excludedNames) || [];
+    return 'folderId=' + folderId + ', exclude=[' + excludeList.join(', ') + '], 실제 제외된 폴더=[' + excludedNames.join(', ') + ']';
+  }
 
   var companyFolders;
   try {
     companyFolders = collectCompanyFolders(folderId, excludeFolderIds);
   } catch (err) {
-    return { foldersScanned: 0, matched: 0, created: 0, skipped: 0, debug: '드라이브 폴더에 접근할 수 없어요: ' + err.message + ' — ID가 정확한지, Drive API 서비스를 추가했는지 확인해주세요.' };
+    return { foldersScanned: 0, matched: 0, created: 0, skipped: 0, debug: '드라이브 폴더에 접근할 수 없어요: ' + err.message + ' — ID가 정확한지, Drive API 서비스를 추가했는지 확인해주세요. (' + diagPrefix() + ')' };
   }
 
   if (companyFolders.length === 0) {
@@ -90,7 +97,7 @@ function syncRoundFolder(round, sessionCount, keywordMap, sessionNums, startTime
       debugMsg = '멘티기업 폴더("번호_권역_기업명" 형태)를 찾지 못했어요. 바로 아래 항목 ' + rootChildren.length + '개: ' +
         rootChildren.slice(0, 20).map(function (f) { return f.name + ' [' + f.mimeType + ']'; }).join(', ');
     }
-    return { foldersScanned: 0, matched: 0, created: 0, skipped: 0, debug: debugMsg };
+    return { foldersScanned: 0, matched: 0, created: 0, skipped: 0, debug: debugMsg + ' (' + diagPrefix(companyFolders) + ')' };
   }
 
   var sheet = getSheet();
@@ -197,7 +204,13 @@ function syncRoundFolder(round, sessionCount, keywordMap, sessionNums, startTime
     }
   }
 
-  return { foldersScanned: foldersScanned, matched: matched, created: created, skipped: skipped };
+  var companyList = companyFolders.length <= 8
+    ? companyFolders.map(function (f) { return f.company; }).join(', ')
+    : companyFolders.slice(0, 8).map(function (f) { return f.company; }).join(', ') + ' 외 ' + (companyFolders.length - 8) + '개';
+  return {
+    foldersScanned: foldersScanned, matched: matched, created: created, skipped: skipped,
+    debug: diagPrefix(companyFolders) + ', 찾은 기업 ' + companyFolders.length + '개(' + companyList + ')'
+  };
 }
 
 function listDriveChildren(parentId, foldersOnly) {
@@ -227,8 +240,11 @@ function listDriveChildren(parentId, foldersOnly) {
 // excludeFolderIds: 이 ID들과 일치하는 하위 폴더는 재귀 탐색에서 건너뛰어요. 회차별
 // 드라이브 폴더가 공용 상위 폴더 밑에 형제로 있지 않고 실수로 서로 안쪽에 중첩돼 있어도,
 // 다른 회차 전용 폴더 안의 기업 폴더까지 이 회차로 잘못 잡아오는 걸 막기 위해서예요.
+// excludedNames: 실제로 몇 번, 어떤 이름의 폴더가 제외됐는지 진단용으로 같이 모아둬요 —
+// 제외가 기대대로 작동하는지 동기화 결과 메시지로 바로 확인할 수 있게.
 function collectCompanyFolders(rootId, excludeFolderIds) {
   var results = [];
+  var excludedNames = [];
   var COMPANY_NAME_RE = /^(\d+)[_.]\s*([^_]+)_(.+)$/;
   var exclude = excludeFolderIds || [];
 
@@ -236,7 +252,10 @@ function collectCompanyFolders(rootId, excludeFolderIds) {
     if (depth > 6) return;
     var children = listDriveChildren(folderId, true);
     children.forEach(function (child) {
-      if (exclude.indexOf(child.id) !== -1) return;
+      if (exclude.indexOf(child.id) !== -1) {
+        excludedNames.push(child.name + '(' + child.id + ')');
+        return;
+      }
       var m = child.name.match(COMPANY_NAME_RE);
       if (m) {
         results.push({ id: child.id, folderNc: m[1], region: m[2].trim(), company: m[3].trim() });
@@ -247,5 +266,6 @@ function collectCompanyFolders(rootId, excludeFolderIds) {
   }
 
   walk(rootId, 0);
+  results.excludedNames = excludedNames;
   return results;
 }
