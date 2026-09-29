@@ -33,7 +33,12 @@ function syncFromDrive() {
         debugParts.push('시간이 오래 걸려서 일부 회차는 처리하지 못했어요. "드라이브에서 불러오기"를 다시 누르면 이어서 처리돼요.');
         break;
       }
-      var result = syncRoundFolder(rounds[ri], sessionCount, keywordMap, sessionNums, startTime, TIME_BUDGET_MS);
+      // 다른 회차 전용 폴더가 지금 회차 폴더 밑에 우연히 중첩돼 있어도(예: 공용 상위
+      // 폴더 밑에 회차별 폴더가 형제로 있는 게 아니라 실수로 안쪽에 들어간 경우) 그 안까지
+      // 잘못 훑지 않도록, 다른 회차들의 driveFolderId는 재귀 탐색에서 건너뛰어요.
+      var otherRoundFolderIds = rounds.filter(function (r) { return r.driveFolderId !== rounds[ri].driveFolderId; })
+        .map(function (r) { return r.driveFolderId; });
+      var result = syncRoundFolder(rounds[ri], sessionCount, keywordMap, sessionNums, startTime, TIME_BUDGET_MS, otherRoundFolderIds);
       totals.foldersScanned += result.foldersScanned;
       totals.matched += result.matched;
       totals.created += result.created;
@@ -51,13 +56,13 @@ function syncFromDrive() {
 // 회차 하나의 드라이브 루트 폴더를 스캔해서 rows 시트에 반영해요. 기존 행을 찾을 때
 // "기업명 + 회차"로 매칭해서, 같은 기업이 다른 회차에도 있어도 서로 안 섞이고 독립된
 // 행으로 남아요.
-function syncRoundFolder(round, sessionCount, keywordMap, sessionNums, startTime, TIME_BUDGET_MS) {
+function syncRoundFolder(round, sessionCount, keywordMap, sessionNums, startTime, TIME_BUDGET_MS, excludeFolderIds) {
   var folderId = round.driveFolderId;
   var roundName = round.name;
 
   var companyFolders;
   try {
-    companyFolders = collectCompanyFolders(folderId);
+    companyFolders = collectCompanyFolders(folderId, excludeFolderIds);
   } catch (err) {
     return { foldersScanned: 0, matched: 0, created: 0, skipped: 0, debug: '드라이브 폴더에 접근할 수 없어요: ' + err.message + ' — ID가 정확한지, Drive API 서비스를 추가했는지 확인해주세요.' };
   }
@@ -206,14 +211,19 @@ function listDriveChildren(parentId, foldersOnly) {
   return results;
 }
 
-function collectCompanyFolders(rootId) {
+// excludeFolderIds: 이 ID들과 일치하는 하위 폴더는 재귀 탐색에서 건너뛰어요. 회차별
+// 드라이브 폴더가 공용 상위 폴더 밑에 형제로 있지 않고 실수로 서로 안쪽에 중첩돼 있어도,
+// 다른 회차 전용 폴더 안의 기업 폴더까지 이 회차로 잘못 잡아오는 걸 막기 위해서예요.
+function collectCompanyFolders(rootId, excludeFolderIds) {
   var results = [];
   var COMPANY_NAME_RE = /^(\d+)[_.]\s*([^_]+)_(.+)$/;
+  var exclude = excludeFolderIds || [];
 
   function walk(folderId, depth) {
     if (depth > 6) return;
     var children = listDriveChildren(folderId, true);
     children.forEach(function (child) {
+      if (exclude.indexOf(child.id) !== -1) return;
       var m = child.name.match(COMPANY_NAME_RE);
       if (m) {
         results.push({ id: child.id, folderNc: m[1], region: m[2].trim(), company: m[3].trim() });
