@@ -5,22 +5,7 @@
 // 문자열을 기준으로 한다(드라이브 동기화도 이름으로 매칭하므로 일관성을 맞춤).
 
 function getCompanySheet() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(COMPANY_SHEET_NAME);
-  if (!sheet) {
-    sheet = ss.insertSheet(COMPANY_SHEET_NAME);
-    sheet.appendRow(COMPANY_HEADERS);
-  } else {
-    if (sheet.getMaxColumns() < COMPANY_HEADERS.length) {
-      sheet.insertColumnsAfter(sheet.getMaxColumns(), COMPANY_HEADERS.length - sheet.getMaxColumns());
-    }
-    var firstRow = sheet.getRange(1, 1, 1, COMPANY_HEADERS.length).getValues()[0];
-    var isCorrect = COMPANY_HEADERS.every(function (h, i) { return firstRow[i] === h; });
-    if (!isCorrect) {
-      sheet.getRange(1, 1, 1, COMPANY_HEADERS.length).setValues([COMPANY_HEADERS]);
-    }
-  }
-  return sheet;
+  return ensureSheetWithHeaders(COMPANY_SHEET_NAME, COMPANY_HEADERS);
 }
 
 function normalizeCompanyName(name) {

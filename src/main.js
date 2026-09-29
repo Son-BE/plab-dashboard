@@ -5,22 +5,17 @@ function doGet(e) {
     if (!user) {
       return respond({ error: 'auth', message: '아이디 또는 비밀번호가 올바르지 않아요.' });
     }
+    var ADMIN_ONLY_GET_ACTIONS = ['getLog', 'getUsers', 'getCompanies'];
+    if (ADMIN_ONLY_GET_ACTIONS.indexOf(params.action) !== -1 && user.role !== 'admin') {
+      return respond({ ok: false, error: 'forbidden', message: '관리자만 볼 수 있어요.' });
+    }
     if (params.action === 'getLog') {
-      if (user.role !== 'admin') {
-        return respond({ ok: false, error: 'forbidden', message: '관리자만 볼 수 있어요.' });
-      }
       return respond({ ok: true, log: readLog(200) });
     }
     if (params.action === 'getUsers') {
-      if (user.role !== 'admin') {
-        return respond({ ok: false, error: 'forbidden', message: '관리자만 볼 수 있어요.' });
-      }
       return respond({ ok: true, users: getUsers() });
     }
     if (params.action === 'getCompanies') {
-      if (user.role !== 'admin') {
-        return respond({ ok: false, error: 'forbidden', message: '관리자만 볼 수 있어요.' });
-      }
       return respond({ ok: true, companies: readCompanies() });
     }
     var data = readAll();

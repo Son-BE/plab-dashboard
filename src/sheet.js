@@ -1,30 +1,34 @@
-function getSheet() {
+// 시트가 없으면 헤더와 함께 새로 만들고, 있으면(fixHeaderRow가 false가 아닌 한) 컬럼이
+// 모자라거나 헤더 행이 틀어졌을 때 보정해요. getSheet/getCompanySheet/getLogSheet이 전부
+// 이 로직을 거의 똑같이 반복하고 있어서 하나로 모았어요.
+function ensureSheetWithHeaders(name, headers, opts) {
+  var fixHeaderRow = !opts || opts.fixHeaderRow !== false;
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(SHEET_NAME);
+  var sheet = ss.getSheetByName(name);
   if (!sheet) {
-    sheet = ss.insertSheet(SHEET_NAME);
-    sheet.appendRow(HEADERS);
-  } else {
-    if (sheet.getMaxColumns() < HEADERS.length) {
-      sheet.insertColumnsAfter(sheet.getMaxColumns(), HEADERS.length - sheet.getMaxColumns());
-    }
-    var firstRow = sheet.getRange(1, 1, 1, HEADERS.length).getValues()[0];
-    var isCorrect = HEADERS.every(function (h, i) { return firstRow[i] === h; });
-    if (!isCorrect) {
-      sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
-    }
+    sheet = ss.insertSheet(name);
+    sheet.appendRow(headers);
+    return sheet;
+  }
+  if (!fixHeaderRow) return sheet;
+  if (sheet.getMaxColumns() < headers.length) {
+    sheet.insertColumnsAfter(sheet.getMaxColumns(), headers.length - sheet.getMaxColumns());
+  }
+  var firstRow = sheet.getRange(1, 1, 1, headers.length).getValues()[0];
+  var isCorrect = headers.every(function (h, i) { return firstRow[i] === h; });
+  if (!isCorrect) {
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
   }
   return sheet;
 }
 
+function getSheet() {
+  return ensureSheetWithHeaders(SHEET_NAME, HEADERS);
+}
+
+// 로그 시트는 원래부터 컬럼 부족분 채우기·헤더 재보정을 하지 않았어요(그대로 유지).
 function getLogSheet() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(LOG_SHEET_NAME);
-  if (!sheet) {
-    sheet = ss.insertSheet(LOG_SHEET_NAME);
-    sheet.appendRow(LOG_HEADERS);
-  }
-  return sheet;
+  return ensureSheetWithHeaders(LOG_SHEET_NAME, LOG_HEADERS, { fixHeaderRow: false });
 }
 
 // 로그 기록은 항상 best-effort예요 — 로그 시트에 문제가 생겨도(예: 잠깐 잠김) 실제 데이터
