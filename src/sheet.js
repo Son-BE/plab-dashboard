@@ -69,9 +69,9 @@ function readLog(limit) {
 
 var FIELD_LABELS_KO = {
   date: '협약일자', folderNc: '폴더NC', region: '권역', company: '기업명',
-  plan: '계획서', report: '보고서', complete: '완료', flag: '이슈', remark: '비고',
+  plan: '수행계획서', report: '결과보고서', complete: '완료', flag: '이슈', remark: '비고',
   round: '회차', contactEmail: '담당자 이메일', folderId: '폴더ID',
-  upPlan: '업로드-계획서', upReport: '업로드-보고서'
+  upPlan: '업로드-수행계획서', upReport: '업로드-결과보고서'
 };
 
 function fieldLabelKo(h) {

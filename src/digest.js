@@ -46,8 +46,8 @@ function missingItemsLabel(row, sessionCount) {
   for (var n = 1; n <= sessionCount; n++) {
     if (!row.sessions[n - 1]) missing.push(n + '회차');
   }
-  if (!row.plan) missing.push('계획서');
-  if (!row.report) missing.push('보고서');
+  if (!row.plan) missing.push('수행계획서');
+  if (!row.report) missing.push('결과보고서');
   return missing;
 }
 

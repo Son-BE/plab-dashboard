@@ -68,8 +68,8 @@
         '<th class="col-region">권역</th>' +
         '<th class="col-company sticky-col">멘티기업</th>' +
         sessionHeaderCells() +
-        '<th class="col-doc">계획서</th>' +
-        '<th class="col-doc">보고서</th>' +
+        '<th class="col-doc">수행계획서</th>' +
+        '<th class="col-doc">결과보고서</th>' +
         '<th class="col-complete">완료</th>';
     } else {
       headRow =
@@ -77,8 +77,8 @@
         '<th class="col-region">권역</th>' +
         '<th class="col-company sticky-col">멘티기업</th>' +
         sessionHeaderCells() +
-        '<th class="col-doc">계획서</th>' +
-        '<th class="col-doc">보고서</th>' +
+        '<th class="col-doc">수행계획서</th>' +
+        '<th class="col-doc">결과보고서</th>' +
         '<th class="col-progress">수행도</th>' +
         '<th class="col-complete">완료</th>' +
         '<th class="col-flag">이슈</th>' +
@@ -237,8 +237,8 @@
     for(var i=0; i<r.sessions.length; i++){
       items.push({ field:'upSession'+(i+1), label:(i+1)+'회차', available:r.sessions[i], checked:r['upSession'+(i+1)] });
     }
-    items.push({ field:'upPlan', label:'계획서', available:r.plan, checked:r.upPlan });
-    items.push({ field:'upReport', label:'보고서', available:r.report, checked:r.upReport });
+    items.push({ field:'upPlan', label:'수행계획서', available:r.plan, checked:r.upPlan });
+    items.push({ field:'upReport', label:'결과보고서', available:r.report, checked:r.upReport });
     return items;
   }
 
@@ -304,8 +304,8 @@
     var sheet = workbook.addWorksheet('취합현황', { views: [{ state: 'frozen', ySplit: 2 }] });
     var sessionColDefs = timesArray(n, function(i){ return { header: (i+1)+'회차', key: 's'+(i+1), width: 7 }; });
     var tailColDefs = [
-      { header: '계획서', key: 'plan', width: 9 },
-      { header: '보고서', key: 'report', width: 9 },
+      { header: '수행계획서', key: 'plan', width: 12 },
+      { header: '결과보고서', key: 'report', width: 12 },
       { header: '수행도', key: 'progress', width: 9 },
       { header: '완료', key: 'complete', width: 8 },
       { header: '이슈', key: 'flag', width: 9 },
@@ -376,8 +376,8 @@
       { header: '권역', key: 'region', width: 10 },
       { header: '멘티기업', key: 'company', width: 26 }
     ].concat(sessionColDefs, [
-      { header: '계획서', key: 'uPlan', width: 9 },
-      { header: '보고서', key: 'uReport', width: 9 },
+      { header: '수행계획서', key: 'uPlan', width: 12 },
+      { header: '결과보고서', key: 'uReport', width: 12 },
       { header: '완료', key: 'complete', width: 8 }
     ]);
     var columnDefs = sheet.columns;
