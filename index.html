@@ -2429,16 +2429,25 @@
     rowCountLabel.textContent = (shown === total) ? ('전체 ' + total + '개사') : (shown + '개 표시 중 · 전체 ' + total + '개사');
   }
 
+  // 사이드바(권역/회차 내비)는 페이지와 무관하게 항상 보이니 매번 다시 그려요. 그 외
+  // 페이지별 렌더링(통계·테이블·세션현황·알림센터)은 **지금 보이는 페이지 것만** 다시 그려요
+  // — 예전엔 폴링 때마다 안 보이는 페이지까지 전부(특히 대형 테이블) 다시 그려서 낭비가
+  // 컸어요. 안 그린 페이지는 setPage()가 진입 시점에 알아서 새로 그려주니 최신 상태는 그대로
+  // 보장돼요.
   function renderAll(){
-    renderStats();
-    renderQuickPanels();
     renderRegionNav();
     renderRoundNav();
-    renderTable();
-    renderRowCountLabel();
-    renderSessionView();
-    renderNotifyView();
-    clearExamplesBtn.hidden = !isAdmin() || viewMode !== 'collect' || !STATE.rows.some(function(r){ return r.isExample; });
+    if(currentPage === 'dashboard'){
+      renderStats();
+      renderQuickPanels();
+    }
+    if(currentPage === 'collect' || currentPage === 'upload'){
+      renderTable();
+      renderRowCountLabel();
+      clearExamplesBtn.hidden = !isAdmin() || viewMode !== 'collect' || !STATE.rows.some(function(r){ return r.isExample; });
+    }
+    if(currentPage === 'sessions') renderSessionView();
+    if(currentPage === 'notify') renderNotifyView();
   }
 
   function setPage(page){
@@ -2456,6 +2465,7 @@
     if(navNotifyBtn) navNotifyBtn.classList.toggle('active', page === 'notify');
     if(navSettingsBtn) navSettingsBtn.classList.toggle('active', page === 'settings');
     if(navUsersBtn) navUsersBtn.classList.toggle('active', page === 'users');
+    if(page === 'dashboard'){ renderStats(); renderQuickPanels(); }
     if(page === 'sessions') renderSessionView();
     if(page === 'collect' || page === 'upload') setViewMode(page);
     if(page === 'notify') renderNotifyView();
@@ -2585,12 +2595,15 @@
       (STATE.lastDigest.summary ? (' · ' + STATE.lastDigest.summary) : '');
   }
 
+  // setPage()에서만 호출돼요 — 페이지에 들어갈 때마다 항상 다시 그려서, 백그라운드 폴링이
+  // 이 페이지를 건너뛰고 있었어도(성능 최적화) 진입 시점엔 최신 상태로 보이게 해요.
   function setViewMode(mode){
-    if(viewMode === mode) return;
     viewMode = mode;
     applyRoleUI();
     renderTableHeader();
     renderTable();
+    renderRowCountLabel();
+    clearExamplesBtn.hidden = !isAdmin() || viewMode !== 'collect' || !STATE.rows.some(function(r){ return r.isExample; });
   }
 
   function nowLabel(){
@@ -2944,6 +2957,18 @@
     }
   }
 
+  // 검색/권역/회차/상태/이슈 필터가 바뀔 때 공통으로 다시 그려야 하는 것들 — 사이드바
+  // 내비는 항상 그리고, 테이블/세션현황은 지금 보이는 페이지일 때만(renderAll()과 같은 이유).
+  function refreshFilteredViews(){
+    renderRegionNav();
+    renderRoundNav();
+    if(currentPage === 'collect' || currentPage === 'upload'){
+      renderTable();
+      renderRowCountLabel();
+    }
+    if(currentPage === 'sessions') renderSessionView();
+  }
+
   function bindEvents(){
     if(navDashboardBtn) navDashboardBtn.addEventListener('click', function(){ setPage('dashboard'); });
     if(navSessionsBtn) navSessionsBtn.addEventListener('click', function(){ setPage('sessions'); });
@@ -2971,13 +2996,13 @@
 
     searchInput.addEventListener('input', function(){
       filters.q = searchInput.value.trim().toLowerCase();
-      renderRegionNav(); renderRoundNav(); renderTable(); renderRowCountLabel(); renderSessionView();
+      refreshFilteredViews();
     });
     regionNavEl.addEventListener('click', function(e){
       var btn = e.target.closest('.region-nav-item');
       if(!btn) return;
       filters.region = btn.getAttribute('data-region');
-      renderRegionNav(); renderRoundNav(); renderTable(); renderRowCountLabel(); renderSessionView();
+      refreshFilteredViews();
     });
     roundNavEl.addEventListener('click', function(e){
       var btn = e.target.closest('.region-nav-item');
@@ -2996,15 +3021,15 @@
         stepMessageEl.style.display = 'none';
       }
       filters.round = selectedRound;
-      renderRegionNav(); renderRoundNav(); renderTable(); renderRowCountLabel(); renderSessionView();
+      refreshFilteredViews();
     });
     filterStatus.addEventListener('change', function(){
       filters.status = filterStatus.value;
-      renderRegionNav(); renderRoundNav(); renderTable(); renderRowCountLabel(); renderSessionView();
+      refreshFilteredViews();
     });
     filterFlag.addEventListener('change', function(){
       filters.flag = filterFlag.value;
-      renderRegionNav(); renderRoundNav(); renderTable(); renderRowCountLabel(); renderSessionView();
+      refreshFilteredViews();
     });
 
     addRowBtn.addEventListener('click', function(){
