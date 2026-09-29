@@ -76,15 +76,7 @@
     notifySendBtn.disabled = true;
     if(notifyResultEl) notifyResultEl.hidden = true;
 
-    fetch(apiUrl, {
-      method:'POST',
-      cache:'no-store',
-      headers:{ 'Content-Type':'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action:'sendReminderEmails', ids:ids, subject:subject, body:body, u:AUTH.u, p:AUTH.p })
-    }).then(function(res){
-        if(!res.ok) throw new Error('HTTP ' + res.status);
-        return res.json();
-      })
+    apiPost('sendReminderEmails', { ids:ids, subject:subject, body:body })
       .then(function(data){
         if(!data || data.ok === false){
           alert((data && data.message) || '메일 발송에 실패했어요.');
@@ -150,12 +142,7 @@
   function fetchUsers(){
     if(!usersListEl || !apiUrl) return;
     usersListEl.innerHTML = '<li class="side-item"><span>불러오는 중…</span></li>';
-    var bustUrl = apiUrl + (apiUrl.indexOf('?') === -1 ? '?' : '&') + '_=' + Date.now() +
-      '&u=' + encodeURIComponent(AUTH.u || '') + '&p=' + encodeURIComponent(AUTH.p || '') + '&action=getUsers';
-    return fetch(bustUrl, { method:'GET', cache:'no-store' }).then(function(res){
-      if(!res.ok) throw new Error('HTTP ' + res.status);
-      return res.json();
-    }).then(function(data){
+    return apiGet('getUsers').then(function(data){
       if(!data || data.ok === false){
         usersListEl.innerHTML = '<li class="side-item"><span>' + escapeHtml((data && data.message) || '불러오지 못했어요.') + '</span></li>';
         return;
@@ -261,12 +248,7 @@
   function fetchClients(){
     if(!clientsListEl || !apiUrl) return;
     clientsListEl.innerHTML = '<li class="side-item"><span>불러오는 중…</span></li>';
-    var bustUrl = apiUrl + (apiUrl.indexOf('?') === -1 ? '?' : '&') + '_=' + Date.now() +
-      '&u=' + encodeURIComponent(AUTH.u || '') + '&p=' + encodeURIComponent(AUTH.p || '') + '&action=getCompanies';
-    return fetch(bustUrl, { method:'GET', cache:'no-store' }).then(function(res){
-      if(!res.ok) throw new Error('HTTP ' + res.status);
-      return res.json();
-    }).then(function(data){
+    return apiGet('getCompanies').then(function(data){
       if(!data || data.ok === false){
         clientsListEl.innerHTML = '<li class="side-item"><span>' + escapeHtml((data && data.message) || '불러오지 못했어요.') + '</span></li>';
         return;

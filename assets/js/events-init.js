@@ -227,15 +227,7 @@
       saveDot.className = 'save-dot syncing';
       saveText.textContent = '드라이브 확인 중…';
       console.log('[드라이브 연동] 요청 시작:', apiUrl);
-      fetch(apiUrl, {
-        method: 'POST',
-        cache: 'no-store',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'syncFromDrive', u: AUTH.u, p: AUTH.p })
-      }).then(function(res){
-          if(!res.ok) throw new Error('HTTP ' + res.status);
-          return res.json();
-        })
+      apiPost('syncFromDrive')
         .then(function(data){
           console.log('[드라이브 연동] 응답:', data);
           if(data && data.error === 'auth'){
@@ -301,15 +293,7 @@
         return;
       }
       flagThresholdsSaveBtn.disabled = true;
-      fetch(apiUrl, {
-        method:'POST',
-        cache:'no-store',
-        headers:{ 'Content-Type':'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action:'setFlagThresholds', value:{ caution:caution, alert:alertDays, issue:issue }, u:AUTH.u, p:AUTH.p })
-      }).then(function(res){
-          if(!res.ok) throw new Error('HTTP ' + res.status);
-          return res.json();
-        })
+      apiPost('setFlagThresholds', { value:{ caution:caution, alert:alertDays, issue:issue } })
         .then(function(data){
           if(!data || data.ok === false){
             alert((data && data.message) || '지연 기준일 저장에 실패했어요.');
@@ -347,15 +331,7 @@
       sessionCountSaveBtn.disabled = true;
       var originalLabel = sessionCountSaveBtn.textContent;
       sessionCountSaveBtn.textContent = '저장 중…';
-      fetch(apiUrl, {
-        method:'POST',
-        cache:'no-store',
-        headers:{ 'Content-Type':'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action:'setSessionCount', value:n, u:AUTH.u, p:AUTH.p })
-      }).then(function(res){
-          if(!res.ok) throw new Error('HTTP ' + res.status);
-          return res.json();
-        })
+      apiPost('setSessionCount', { value:n })
         .then(function(data){
           if(!data || data.ok === false){
             alert((data && data.message) || '회차 수 저장에 실패했어요.');
@@ -379,15 +355,7 @@
       if(!isAdmin()) return;
       var email = (adminEmailInput.value || '').trim();
       adminEmailSaveBtn.disabled = true;
-      fetch(apiUrl, {
-        method:'POST',
-        cache:'no-store',
-        headers:{ 'Content-Type':'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action:'setAdminEmail', value:email, u:AUTH.u, p:AUTH.p })
-      }).then(function(res){
-          if(!res.ok) throw new Error('HTTP ' + res.status);
-          return res.json();
-        })
+      apiPost('setAdminEmail', { value:email })
         .then(function(data){
           if(!data || data.ok === false){
             alert((data && data.message) || '저장에 실패했어요.');
@@ -407,15 +375,7 @@
       if(!isAdmin()) return;
       var enabled = reminderEnabledInput.checked;
       reminderEnabledInput.disabled = true;
-      fetch(apiUrl, {
-        method:'POST',
-        cache:'no-store',
-        headers:{ 'Content-Type':'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action:'setReminderEnabled', value:enabled, u:AUTH.u, p:AUTH.p })
-      }).then(function(res){
-          if(!res.ok) throw new Error('HTTP ' + res.status);
-          return res.json();
-        })
+      apiPost('setReminderEnabled', { value:enabled })
         .then(function(data){
           if(!data || data.ok === false){
             alert((data && data.message) || '저장에 실패했어요.');
@@ -444,10 +404,7 @@
           var region = li.querySelector('.user-region-select').value;
           if(!confirm(username + ' 계정의 권한을 저장할까요?')) return;
           saveBtn.disabled = true;
-          fetch(apiUrl, {
-            method:'POST', cache:'no-store', headers:{ 'Content-Type':'text/plain;charset=utf-8' },
-            body: JSON.stringify({ action:'updateUserRole', username:username, role:role, region:region, u:AUTH.u, p:AUTH.p })
-          }).then(function(res){ if(!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+          apiPost('updateUserRole', { username:username, role:role, region:region })
             .then(function(data){
               if(!data || data.ok === false){ alert((data && data.message) || '저장에 실패했어요.'); return; }
               renderUsersList(data.users || []);
@@ -463,10 +420,7 @@
           if(newPw === null) return;
           if(newPw.length < 6){ alert('비밀번호는 6자 이상이어야 해요.'); return; }
           resetBtn.disabled = true;
-          fetch(apiUrl, {
-            method:'POST', cache:'no-store', headers:{ 'Content-Type':'text/plain;charset=utf-8' },
-            body: JSON.stringify({ action:'resetUserPassword', username:username2, password:newPw, u:AUTH.u, p:AUTH.p })
-          }).then(function(res){ if(!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+          apiPost('resetUserPassword', { username:username2, password:newPw })
             .then(function(data){
               if(!data || data.ok === false){ alert((data && data.message) || '재설정에 실패했어요.'); return; }
               alert('비밀번호를 재설정했어요.');
@@ -480,10 +434,7 @@
           var username3 = delBtn.getAttribute('data-username');
           if(!confirm(username3 + ' 계정을 삭제할까요? 되돌릴 수 없어요.')) return;
           delBtn.disabled = true;
-          fetch(apiUrl, {
-            method:'POST', cache:'no-store', headers:{ 'Content-Type':'text/plain;charset=utf-8' },
-            body: JSON.stringify({ action:'deleteUser', username:username3, u:AUTH.u, p:AUTH.p })
-          }).then(function(res){ if(!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+          apiPost('deleteUser', { username:username3 })
             .then(function(data){
               if(!data || data.ok === false){ alert((data && data.message) || '삭제에 실패했어요.'); return; }
               renderUsersList(data.users || []);
@@ -502,10 +453,7 @@
       if(!username){ alert('아이디를 입력해주세요.'); return; }
       if(password.length < 6){ alert('비밀번호는 6자 이상이어야 해요.'); return; }
       addUserBtn.disabled = true;
-      fetch(apiUrl, {
-        method:'POST', cache:'no-store', headers:{ 'Content-Type':'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action:'addUser', username:username, password:password, role:role, region:region, u:AUTH.u, p:AUTH.p })
-      }).then(function(res){ if(!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+      apiPost('addUser', { username:username, password:password, role:role, region:region })
         .then(function(data){
           if(!data || data.ok === false){ alert((data && data.message) || '추가에 실패했어요.'); return; }
           newUserUsernameInput.value = '';
@@ -550,10 +498,7 @@
           var existing = STATE.companies.find(function(c){ return c.id === id; });
           if(existing) company.name = existing.name;
           saveBtn.disabled = true;
-          fetch(apiUrl, {
-            method:'POST', cache:'no-store', headers:{ 'Content-Type':'text/plain;charset=utf-8' },
-            body: JSON.stringify({ action:'upsertCompany', company:company, u:AUTH.u, p:AUTH.p })
-          }).then(function(res){ if(!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+          apiPost('upsertCompany', { company:company })
             .then(function(data){
               if(!data || data.ok === false){ alert((data && data.message) || '저장에 실패했어요.'); return; }
               STATE.companies = data.companies || [];
@@ -569,10 +514,7 @@
           var delId = delBtn.getAttribute('data-id');
           if(!confirm('이 고객사 프로필을 삭제할까요? 회차별 참여 기록은 그대로 남아요.')) return;
           delBtn.disabled = true;
-          fetch(apiUrl, {
-            method:'POST', cache:'no-store', headers:{ 'Content-Type':'text/plain;charset=utf-8' },
-            body: JSON.stringify({ action:'deleteCompany', id:delId, u:AUTH.u, p:AUTH.p })
-          }).then(function(res){ if(!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+          apiPost('deleteCompany', { id:delId })
             .then(function(data){
               if(!data || data.ok === false){ alert((data && data.message) || '삭제에 실패했어요.'); return; }
               STATE.companies = data.companies || [];
@@ -596,10 +538,7 @@
         businessNo: newClientBusinessNoInput.value
       };
       addClientBtn.disabled = true;
-      fetch(apiUrl, {
-        method:'POST', cache:'no-store', headers:{ 'Content-Type':'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action:'upsertCompany', company:company, u:AUTH.u, p:AUTH.p })
-      }).then(function(res){ if(!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+      apiPost('upsertCompany', { company:company })
         .then(function(data){
           if(!data || data.ok === false){ alert((data && data.message) || '추가에 실패했어요.'); return; }
           newClientNameInput.value = '';

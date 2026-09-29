@@ -1,3 +1,30 @@
+  // 서버와 통신하는 모든 곳(관리 페이지들의 저장/삭제 버튼, 표 저장, 로그인 등)이 거의
+  // 똑같은 POST/GET 틀(헤더, u/p 첨부, res.ok 체크, 캐시버스팅)을 반복하고 있어서 하나로
+  // 모았어요. 실패 시 처리(alert 여부 등)는 호출부마다 달라서 그대로 각자 .then/.catch에 둬요.
+  function apiPost(action, payload){
+    var body = Object.assign({ action: action, u: AUTH.u, p: AUTH.p }, payload || {});
+    return fetch(apiUrl, {
+      method:'POST',
+      cache:'no-store',
+      headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+      body: JSON.stringify(body)
+    }).then(function(res){
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    });
+  }
+
+  // action을 안 주면 fetchRows()처럼 action 파라미터 없는 기본 조회로 동작해요.
+  function apiGet(action){
+    var bustUrl = apiUrl + (apiUrl.indexOf('?') === -1 ? '?' : '&') + '_=' + Date.now() +
+      '&u=' + encodeURIComponent(AUTH.u || '') + '&p=' + encodeURIComponent(AUTH.p || '') +
+      (action ? ('&action=' + action) : '');
+    return fetch(bustUrl, { method:'GET', cache:'no-store' }).then(function(res){
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    });
+  }
+
   function nowLabel(){
     var d = new Date();
     return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
@@ -51,12 +78,7 @@
     // 계속 보이는 문제를 막기 위한 처리예요.
     // 아이디/비밀번호는 매 요청에 같이 실어보내서, 서버가 그때그때 권한(관리자/열람,
     // 담당 권역)을 확인해서 그에 맞는 데이터만 돌려주도록 해요.
-    var bustUrl = apiUrl + (apiUrl.indexOf('?') === -1 ? '?' : '&') + '_=' + Date.now() +
-      '&u=' + encodeURIComponent(AUTH.u || '') + '&p=' + encodeURIComponent(AUTH.p || '');
-    return fetch(bustUrl, { method:'GET', cache:'no-store' }).then(function(res){
-      if(!res.ok) throw new Error('HTTP ' + res.status);
-      return res.json();
-    }).then(function(data){
+    return apiGet().then(function(data){
       if(data && data.error === 'auth'){
         var err = new Error(data.message || '아이디 또는 비밀번호가 올바르지 않아요.');
         err.isAuthError = true;
@@ -112,12 +134,7 @@
   function fetchLog(){
     if(!changeLogBody || !apiUrl) return;
     changeLogBody.innerHTML = '<tr class="empty-row"><td colspan="5">불러오는 중…</td></tr>';
-    var bustUrl = apiUrl + (apiUrl.indexOf('?') === -1 ? '?' : '&') + '_=' + Date.now() +
-      '&u=' + encodeURIComponent(AUTH.u || '') + '&p=' + encodeURIComponent(AUTH.p || '') + '&action=getLog';
-    return fetch(bustUrl, { method:'GET', cache:'no-store' }).then(function(res){
-      if(!res.ok) throw new Error('HTTP ' + res.status);
-      return res.json();
-    }).then(function(data){
+    return apiGet('getLog').then(function(data){
       if(!data || data.ok === false){
         changeLogBody.innerHTML = '<tr class="empty-row"><td colspan="5">' + escapeHtml((data && data.message) || '불러오지 못했어요.') + '</td></tr>';
         return;
@@ -160,12 +177,8 @@
     if(!row) return;
     inFlight++;
     setSyncStatus('syncing');
-    fetch(apiUrl, {
-      method:'POST',
-      cache:'no-store',
-      headers:{ 'Content-Type':'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action:'upsert', row: row, u: AUTH.u, p: AUTH.p })
-    }).catch(function(err){ console.error(err); })
+    apiPost('upsert', { row: row })
+      .catch(function(err){ console.error(err); })
       .finally(function(){
         inFlight--;
         setSyncStatus(inFlight > 0 ? 'syncing' : 'synced');
@@ -181,12 +194,8 @@
     if(!isAdmin()) return;
     inFlight++;
     setSyncStatus('syncing');
-    fetch(apiUrl, {
-      method:'POST',
-      cache:'no-store',
-      headers:{ 'Content-Type':'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action:'delete', id: id, u: AUTH.u, p: AUTH.p })
-    }).catch(function(err){ console.error(err); })
+    apiPost('delete', { id: id })
+      .catch(function(err){ console.error(err); })
       .finally(function(){
         inFlight--;
         setSyncStatus(inFlight > 0 ? 'syncing' : 'synced');
@@ -198,15 +207,7 @@
   function saveUploadField(id, field, value){
     inFlight++;
     setSyncStatus('syncing');
-    fetch(apiUrl, {
-      method:'POST',
-      cache:'no-store',
-      headers:{ 'Content-Type':'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action:'setUpload', id:id, field:field, value:value, u:AUTH.u, p:AUTH.p })
-    }).then(function(res){
-        if(!res.ok) throw new Error('HTTP ' + res.status);
-        return res.json();
-      })
+    apiPost('setUpload', { id:id, field:field, value:value })
       .then(function(data){
         if(data && data.error === 'auth'){
           clearAuth();
