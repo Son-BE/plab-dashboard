@@ -302,6 +302,8 @@
                   return '<option value="' + s + '"' + (status === s ? ' selected' : '') + '>' + ROUND_STATUS_LABELS[s] + '</option>';
                 }).join('') +
               '</select></label>' +
+            '<label style="display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted);">드라이브 폴더 ID' +
+              '<input class="compose-input round-field-driveFolderId" type="text" value="' + escapeHtml(r.driveFolderId||'') + '" placeholder="이 회차 전용 폴더 ID" style="height:34px; width:220px;"></label>' +
             '<button type="button" class="btn btn-primary round-save-btn" data-id="' + escapeHtml(r.id) + '">저장</button>' +
           '</div>' +
           '<label style="display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted);">설명' +
