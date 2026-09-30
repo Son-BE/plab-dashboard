@@ -548,7 +548,43 @@
     }
   }
 
+  // "드라이브에서 불러오기"/"취합현황 업데이트"를 지금 선택된 회차의 폴더NC(번호) 범위로만
+  // 돌릴 수 있게, 현재 회차에 실제로 있는 기업들의 번호 범위를 보고 100개씩 구간을 만들어요.
+  // 기업 수가 많은 회차를 한 번에 다 처리하면 오래 걸리니, 나눠서 처리할 수 있게 하기 위함.
+  function renderUpdateRangeOptions(){
+    if(!updateRangeInput) return;
+    var prevValue = updateRangeInput.value;
+    var relevant = STATE.rows.filter(function(r){ return matchesRound(r); });
+    var maxNc = 0;
+    relevant.forEach(function(r){
+      var n = parseInt(r.folderNc, 10);
+      if(!isNaN(n) && n > maxNc) maxNc = n;
+    });
+    var BUCKET = 100;
+    var values = ['all'];
+    var html = ['<option value="all">전체 범위</option>'];
+    for(var start = 1; start <= maxNc; start += BUCKET){
+      var end = start + BUCKET - 1;
+      var v = start + '-' + end;
+      values.push(v);
+      html.push('<option value="' + v + '">' + start + '~' + end + '</option>');
+    }
+    updateRangeInput.innerHTML = html.join('');
+    if(values.indexOf(prevValue) !== -1) updateRangeInput.value = prevValue;
+  }
+
+  // update-range-input에서 고른 값을 { from, to } 형태로 바꿔요. "전체 범위"면 null
+  // (=범위 제한 없음, 서버 쪽 inFolderNcRange가 null을 "전부 통과"로 처리해요).
+  function getSelectedUpdateRange(){
+    if(!updateRangeInput) return null;
+    var v = updateRangeInput.value;
+    if(!v || v === 'all') return null;
+    var parts = v.split('-');
+    return { from: parseInt(parts[0], 10), to: parseInt(parts[1], 10) };
+  }
+
   function renderTable(){
+    renderUpdateRangeOptions();
     var gate = shouldGateUpload();
     var gateEl = document.getElementById('upload-company-gate');
     var mainCardEl = document.getElementById('table-card-main');

@@ -55,7 +55,7 @@
 
   var statsGrid, quickPanelsEl, rowsBody, tableHeadEl, rowCountLabel, searchInput, regionNavEl, roundNavEl, stepMessageEl, filterStatus, filterFlag,
       addRowBtn, clearExamplesBtn, regionListEl, saveDot, saveText, refreshBtn, setupBanner, setupUrlInput, setupSaveBtn,
-      driveSyncBtn, refreshChecklistBtn, regionSidebarSection, loginScreen, loginForm, loginUsername, loginPassword, loginError, loginSubmit,
+      driveSyncBtn, refreshChecklistBtn, updateRangeInput, regionSidebarSection, loginScreen, loginForm, loginUsername, loginPassword, loginError, loginSubmit,
       roleBadge, logoutBtn, lastDigestLabel, exportExcelBtn, sessionCountInput,
       sessionCountSaveBtn,
       changeLogBtn, changeLogBanner, changeLogBody, changeLogRefreshBtn, changeLogCloseBtn,

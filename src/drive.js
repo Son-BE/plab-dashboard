@@ -13,6 +13,16 @@ function normalizeDriveFolderId(v) {
   return v;
 }
 
+// range: { from, to } 형태의 폴더NC(번호) 범위로 걸러낼 때 써요. 기업 수가 많은 회차를
+// 한 번에 다 처리하면 오래 걸리니까, 필요하면 일부 번호대만 나눠서 처리할 수 있게 해요.
+// range가 없으면(null/undefined) 전부 통과.
+function inFolderNcRange(folderNc, range) {
+  if (!range || typeof range.from !== 'number' || typeof range.to !== 'number') return true;
+  var n = parseInt(folderNc, 10);
+  if (isNaN(n)) return true;
+  return n >= range.from && n <= range.to;
+}
+
 function ensureRoundHasDefaultFolder() {
   if (findRoundByName(CURRENT_SYNC_ROUND)) return;
   if (!DRIVE_FOLDER_ID || DRIVE_FOLDER_ID.indexOf('PASTE_YOUR') === 0) return;
@@ -23,7 +33,7 @@ function ensureRoundHasDefaultFolder() {
 // 특정 Step을 보고 있는 상태로 "드라이브에서 불러오기"를 누르면, 다른 회차(특히 기업 수가
 // 훨씬 많은 회차)까지 매번 같이 훑을 이유가 없어서 — 지금 보고 있는 회차만 빠르게 동기화할
 // 수 있게 해요. 안 넘기거나 'all'이면 예전처럼 등록된 회차 전부를 동기화해요.
-function syncFromDrive(onlyRoundName) {
+function syncFromDrive(onlyRoundName, range) {
   ensureRoundHasDefaultFolder();
   var allRounds = readRounds()
     .map(function (r) { return Object.assign({}, r, { driveFolderId: normalizeDriveFolderId(r.driveFolderId) }); })
@@ -64,7 +74,7 @@ function syncFromDrive(onlyRoundName) {
       // 재귀 탐색에서 건너뛰어요.
       var otherRoundFolderIds = allRounds.filter(function (r) { return r.driveFolderId !== rounds[ri].driveFolderId; })
         .map(function (r) { return r.driveFolderId; });
-      var result = syncRoundFolder(rounds[ri], sessionCount, keywordMap, sessionNums, startTime, TIME_BUDGET_MS, otherRoundFolderIds);
+      var result = syncRoundFolder(rounds[ri], sessionCount, keywordMap, sessionNums, startTime, TIME_BUDGET_MS, otherRoundFolderIds, range);
       totals.foldersScanned += result.foldersScanned;
       totals.matched += result.matched;
       totals.created += result.created;
@@ -82,7 +92,7 @@ function syncFromDrive(onlyRoundName) {
 // 회차 하나의 드라이브 루트 폴더를 스캔해서 rows 시트에 반영해요. 기존 행을 찾을 때
 // "기업명 + 회차"로 매칭해서, 같은 기업이 다른 회차에도 있어도 서로 안 섞이고 독립된
 // 행으로 남아요.
-function syncRoundFolder(round, sessionCount, keywordMap, sessionNums, startTime, TIME_BUDGET_MS, excludeFolderIds) {
+function syncRoundFolder(round, sessionCount, keywordMap, sessionNums, startTime, TIME_BUDGET_MS, excludeFolderIds, range) {
   var folderId = round.driveFolderId;
   var roundName = round.name;
   var excludeList = excludeFolderIds || [];
@@ -111,6 +121,14 @@ function syncRoundFolder(round, sessionCount, keywordMap, sessionNums, startTime
         rootChildren.slice(0, 20).map(function (f) { return f.name + ' [' + f.mimeType + ']'; }).join(', ');
     }
     return { foldersScanned: 0, matched: 0, created: 0, skipped: 0, debug: debugMsg + ' (' + diagPrefix(companyFolders) + ')' };
+  }
+
+  // 폴더NC 범위가 지정됐으면 그 번호대의 기업만 골라내요(기업 수가 많은 회차를 나눠서
+  // 처리할 때 씀) — 걸러낸 뒤에도 diagPrefix가 쓰는 excludedNames는 그대로 들고가요.
+  if (range) {
+    var filteredFolders = companyFolders.filter(function (f) { return inFolderNcRange(f.folderNc, range); });
+    filteredFolders.excludedNames = companyFolders.excludedNames;
+    companyFolders = filteredFolders;
   }
 
   var sheet = getSheet();
@@ -247,7 +265,7 @@ function syncRoundFolder(round, sessionCount, keywordMap, sessionNums, startTime
 // 훑지 않아요 — 이미 시트에 있는 행마다 저장된 folderId로 바로 그 폴더의 파일만 다시
 // 확인해서 체크박스를 갱신해요. 평소에 "새로 올라온 파일 체크"만 하고 싶을 때 이 쪽이
 // 훨씬 빠르고, 새 기업이 추가됐을 때만 "드라이브에서 불러오기"를 쓰면 돼요.
-function refreshChecklistFromDrive(onlyRoundName) {
+function refreshChecklistFromDrive(onlyRoundName, range) {
   var allRounds = readRounds()
     .map(function (r) { return Object.assign({}, r, { driveFolderId: normalizeDriveFolderId(r.driveFolderId) }); })
     .filter(function (r) { return r.driveFolderId; });
@@ -277,7 +295,7 @@ function refreshChecklistFromDrive(onlyRoundName) {
     var debugParts = [];
 
     for (var ri = 0; ri < rounds.length; ri++) {
-      var result = refreshRoundChecklist(rounds[ri].name, sessionNums, keywordMap, startTime, TIME_BUDGET_MS);
+      var result = refreshRoundChecklist(rounds[ri].name, sessionNums, keywordMap, startTime, TIME_BUDGET_MS, range);
       totals.checked += result.checked;
       totals.updated += result.updated;
       totals.skipped += result.skipped;
@@ -291,11 +309,12 @@ function refreshChecklistFromDrive(onlyRoundName) {
   }
 }
 
-function refreshRoundChecklist(roundName, sessionNums, keywordMap, startTime, TIME_BUDGET_MS) {
+function refreshRoundChecklist(roundName, sessionNums, keywordMap, startTime, TIME_BUDGET_MS, range) {
   var sheet = getSheet();
   var values = sheet.getDataRange().getValues();
   var companyCol = HEADERS.indexOf('company');
   var roundCol = HEADERS.indexOf('round');
+  var folderNcCol = HEADERS.indexOf('folderNc');
   var sessionCols = sessionNums.map(function (n) { return HEADERS.indexOf('session' + n); });
   var planCol = HEADERS.indexOf('plan');
   var reportCol = HEADERS.indexOf('report');
@@ -303,6 +322,8 @@ function refreshRoundChecklist(roundName, sessionNums, keywordMap, startTime, TI
 
   // 이 회차 소속이고, 드라이브 폴더가 이미 연결돼있고(folderId 있음), 아직 다 안 끝난 행만
   // 골라요 — 새 기업 탐색이 아니라 아는 기업의 파일만 다시 보는 거라 이걸로 충분해요.
+  // 폴더NC 범위가 지정됐으면 그 번호대만 골라서, 기업 수가 많은 회차를 나눠서 처리할 수
+  // 있게 해요.
   var candidates = [];
   var skipped = 0;
   for (var i = 1; i < values.length; i++) {
@@ -310,6 +331,7 @@ function refreshRoundChecklist(roundName, sessionNums, keywordMap, startTime, TI
     if (!row[companyCol]) continue;
     var rowRound = row[roundCol] || DEFAULT_ROUND;
     if (rowRound !== roundName) continue;
+    if (!inFolderNcRange(row[folderNcCol], range)) continue;
     var folderId = row[folderIdCol];
     if (!folderId) continue;
     var alreadyDone = sessionCols.every(function (c) { return !!row[c]; }) && !!row[planCol] && !!row[reportCol];

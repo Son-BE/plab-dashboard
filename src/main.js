@@ -60,14 +60,14 @@ function doPost(e) {
       return respond({ ok: true });
     }
     if (body.action === 'syncFromDrive') {
-      var result = syncFromDrive(body.round);
+      var result = syncFromDrive(body.round, body.range);
       recordSyncResult(result);
       return respond({ ok: true, result: result, lastSync: getLastSyncInfo() });
     }
     if (body.action === 'refreshChecklist') {
       // syncFromDrive와 다른 결과 모양(checked/updated)이라 recordSyncResult는 안 씀 —
       // "마지막 드라이브 동기화" 기록은 새 기업 탐색이 있는 syncFromDrive 전용으로 남겨둠.
-      return respond({ ok: true, result: refreshChecklistFromDrive(body.round) });
+      return respond({ ok: true, result: refreshChecklistFromDrive(body.round, body.range) });
     }
     if (body.action === 'setSessionCount') {
       return respond(setSessionCountConfig(body.value, user));

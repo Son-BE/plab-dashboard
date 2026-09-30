@@ -228,7 +228,7 @@
       saveDot.className = 'save-dot syncing';
       saveText.textContent = (targetRound !== 'all' ? targetRound + ' ' : '') + '드라이브 확인 중…';
       console.log('[드라이브 연동] 요청 시작:', apiUrl, 'round=', targetRound);
-      apiPost('syncFromDrive', { round: targetRound })
+      apiPost('syncFromDrive', { round: targetRound, range: getSelectedUpdateRange() })
         .then(function(data){
           console.log('[드라이브 연동] 응답:', data);
           if(data && data.error === 'auth'){
@@ -274,7 +274,7 @@
       refreshChecklistBtn.textContent = '업데이트 중…';
       saveDot.className = 'save-dot syncing';
       saveText.textContent = (targetRound !== 'all' ? targetRound + ' ' : '') + '취합현황 업데이트 중…';
-      apiPost('refreshChecklist', { round: targetRound })
+      apiPost('refreshChecklist', { round: targetRound, range: getSelectedUpdateRange() })
         .then(function(data){
           if(data && data.error === 'auth'){
             clearAuth();
@@ -764,6 +764,7 @@
     setupSaveBtn = document.getElementById('setup-save-btn');
     driveSyncBtn = document.getElementById('drive-sync-btn');
     refreshChecklistBtn = document.getElementById('refresh-checklist-btn');
+    updateRangeInput = document.getElementById('update-range-input');
     lastDigestLabel = document.getElementById('last-digest-label');
     exportExcelBtn = document.getElementById('export-excel-btn');
     sessionCountInput = document.getElementById('session-count-input');
