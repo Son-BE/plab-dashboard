@@ -62,6 +62,7 @@
     var uploadGated = shouldGateUpload();
     addRowBtn.hidden = !showCollectionControls;
     driveSyncBtn.hidden = !showCollectionControls;
+    if(refreshChecklistBtn) refreshChecklistBtn.hidden = !showCollectionControls;
     if(changeLogBtn) changeLogBtn.hidden = !admin;
     if(navNotifyBtn) navNotifyBtn.hidden = !admin;
     if(navSettingsBtn) navSettingsBtn.hidden = !admin;
@@ -259,6 +260,49 @@
         .finally(function(){
           driveSyncBtn.disabled = false;
           driveSyncBtn.textContent = originalLabel;
+        });
+    });
+
+    // "취합현황 업데이트"는 새 기업을 찾으려고 폴더 트리를 다시 훑지 않고, 이미 아는
+    // 기업들의 저장된 폴더에서 파일만 다시 확인해요 — 평소 반복 작업은 이쪽이 훨씬 빨라요.
+    // 새 기업이 추가됐을 때만 위의 "드라이브에서 불러오기"를 쓰면 돼요.
+    if(refreshChecklistBtn) refreshChecklistBtn.addEventListener('click', function(){
+      if(!isAdmin()) return;
+      refreshChecklistBtn.disabled = true;
+      var originalLabel = refreshChecklistBtn.textContent;
+      var targetRound = filters.round;
+      refreshChecklistBtn.textContent = '업데이트 중…';
+      saveDot.className = 'save-dot syncing';
+      saveText.textContent = (targetRound !== 'all' ? targetRound + ' ' : '') + '취합현황 업데이트 중…';
+      apiPost('refreshChecklist', { round: targetRound })
+        .then(function(data){
+          if(data && data.error === 'auth'){
+            clearAuth();
+            AUTH.u = null; AUTH.p = null;
+            showLoginScreen('로그인 정보가 만료됐어요. 다시 로그인해 주세요.');
+            return;
+          }
+          var r = data && data.result;
+          var msg;
+          if(!r){
+            msg = '취합현황 업데이트 응답을 확인할 수 없어요.';
+          } else if(r.error){
+            msg = '취합현황 업데이트 오류: ' + r.error;
+          } else {
+            msg = '확인 ' + r.checked + '개 · 갱신 ' + r.updated + '개' +
+              (r.skipped ? ' · 이미 완료 ' + r.skipped + '개 건너뜀' : '');
+            if(r.debug) msg += ' — ' + r.debug;
+          }
+          return pollOnce(true).then(function(){ saveText.textContent = msg; });
+        })
+        .catch(function(err){
+          console.error('[취합현황 업데이트] 실패:', err);
+          saveDot.className = 'save-dot error';
+          saveText.textContent = '취합현황 업데이트에 실패했어요 (' + err.message + '). 콘솔(F12)을 확인해 주세요.';
+        })
+        .finally(function(){
+          refreshChecklistBtn.disabled = false;
+          refreshChecklistBtn.textContent = originalLabel;
         });
     });
 
@@ -719,6 +763,7 @@
     setupUrlInput = document.getElementById('setup-url-input');
     setupSaveBtn = document.getElementById('setup-save-btn');
     driveSyncBtn = document.getElementById('drive-sync-btn');
+    refreshChecklistBtn = document.getElementById('refresh-checklist-btn');
     lastDigestLabel = document.getElementById('last-digest-label');
     exportExcelBtn = document.getElementById('export-excel-btn');
     sessionCountInput = document.getElementById('session-count-input');

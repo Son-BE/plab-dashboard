@@ -243,6 +243,131 @@ function syncRoundFolder(round, sessionCount, keywordMap, sessionNums, startTime
   };
 }
 
+// "드라이브에서 불러오기"(syncFromDrive)와 달리, 새 기업을 찾으려고 폴더 트리를 다시
+// 훑지 않아요 — 이미 시트에 있는 행마다 저장된 folderId로 바로 그 폴더의 파일만 다시
+// 확인해서 체크박스를 갱신해요. 평소에 "새로 올라온 파일 체크"만 하고 싶을 때 이 쪽이
+// 훨씬 빠르고, 새 기업이 추가됐을 때만 "드라이브에서 불러오기"를 쓰면 돼요.
+function refreshChecklistFromDrive(onlyRoundName) {
+  var allRounds = readRounds()
+    .map(function (r) { return Object.assign({}, r, { driveFolderId: normalizeDriveFolderId(r.driveFolderId) }); })
+    .filter(function (r) { return r.driveFolderId; });
+  if (!allRounds.length) {
+    return { error: '업데이트할 회차가 없어요. 프로그램 탭에서 회차를 만들고 드라이브 폴더 ID를 입력해주세요.' };
+  }
+
+  var rounds = allRounds;
+  if (onlyRoundName && onlyRoundName !== 'all') {
+    rounds = allRounds.filter(function (r) { return r.name === onlyRoundName; });
+    if (!rounds.length) {
+      return { error: '"' + onlyRoundName + '" 회차에 드라이브 폴더 ID가 등록돼있지 않아요.' };
+    }
+  }
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var sessionCount = getSessionCount();
+    var keywordMap = getKeywordMapForCount(sessionCount);
+    var sessionNums = [];
+    for (var sn = 1; sn <= sessionCount; sn++) sessionNums.push(sn);
+
+    var startTime = Date.now();
+    var TIME_BUDGET_MS = 4.5 * 60 * 1000;
+    var totals = { checked: 0, updated: 0, skipped: 0 };
+    var debugParts = [];
+
+    for (var ri = 0; ri < rounds.length; ri++) {
+      var result = refreshRoundChecklist(rounds[ri].name, sessionNums, keywordMap, startTime, TIME_BUDGET_MS);
+      totals.checked += result.checked;
+      totals.updated += result.updated;
+      totals.skipped += result.skipped;
+      if (result.debug) debugParts.push('[' + rounds[ri].name + '] ' + result.debug);
+    }
+
+    if (debugParts.length) totals.debug = debugParts.join(' / ');
+    return totals;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function refreshRoundChecklist(roundName, sessionNums, keywordMap, startTime, TIME_BUDGET_MS) {
+  var sheet = getSheet();
+  var values = sheet.getDataRange().getValues();
+  var companyCol = HEADERS.indexOf('company');
+  var roundCol = HEADERS.indexOf('round');
+  var sessionCols = sessionNums.map(function (n) { return HEADERS.indexOf('session' + n); });
+  var planCol = HEADERS.indexOf('plan');
+  var reportCol = HEADERS.indexOf('report');
+  var folderIdCol = HEADERS.indexOf('folderId');
+
+  // 이 회차 소속이고, 드라이브 폴더가 이미 연결돼있고(folderId 있음), 아직 다 안 끝난 행만
+  // 골라요 — 새 기업 탐색이 아니라 아는 기업의 파일만 다시 보는 거라 이걸로 충분해요.
+  var candidates = [];
+  var skipped = 0;
+  for (var i = 1; i < values.length; i++) {
+    var row = values[i];
+    if (!row[companyCol]) continue;
+    var rowRound = row[roundCol] || DEFAULT_ROUND;
+    if (rowRound !== roundName) continue;
+    var folderId = row[folderIdCol];
+    if (!folderId) continue;
+    var alreadyDone = sessionCols.every(function (c) { return !!row[c]; }) && !!row[planCol] && !!row[reportCol];
+    if (alreadyDone) { skipped++; continue; }
+    candidates.push({ rowIndex: i, folderId: folderId });
+  }
+
+  var fileListsById = batchListDriveFiles(candidates.map(function (c) { return c.folderId; }));
+  var updated = 0;
+
+  for (var ci = 0; ci < candidates.length; ci++) {
+    if (Date.now() - startTime > TIME_BUDGET_MS) {
+      return {
+        checked: candidates.length, updated: updated, skipped: skipped,
+        debug: '시간이 오래 걸려서 일부만 처리했어요 (전체 ' + candidates.length + '개 중 ' + ci + '개 확인). "취합현황 업데이트"를 다시 누르면 이어서 처리돼요.'
+      };
+    }
+    var c = candidates[ci];
+    var row = values[c.rowIndex];
+    var existing = {};
+    for (var h = 0; h < HEADERS.length; h++) existing[HEADERS[h]] = row[h];
+
+    var fileNames = fileListsById[c.folderId] || [];
+    var flags = {};
+    keywordMap.forEach(function (k) {
+      flags[k.field] = fileNames.some(function (name) {
+        return k.keywords.some(function (kw) { return name.indexOf(kw) !== -1; });
+      });
+    });
+
+    var sessionsArr = sessionNums.map(function (n) { return !!existing['session' + n]; });
+    sessionNums.forEach(function (n) { if (flags['session' + n]) sessionsArr[n - 1] = true; });
+    var mergedPlan = existing.plan || !!flags.plan;
+    var mergedReport = existing.report || !!flags.report;
+    var updatedRow = {
+      id: existing.id,
+      date: existing.date,
+      folderNc: existing.folderNc,
+      region: existing.region,
+      company: existing.company,
+      sessions: sessionsArr,
+      plan: mergedPlan,
+      report: mergedReport,
+      complete: sessionsArr.every(function (v) { return v; }) && mergedPlan && mergedReport,
+      flag: existing.flag,
+      remark: existing.remark,
+      round: existing.round,
+      folderId: existing.folderId
+    };
+    upsertRowUnlocked(updatedRow);
+    updated++;
+  }
+
+  var debugMsg = '확인 ' + candidates.length + '개 · 갱신 ' + updated + '개 · 이미 완료 ' + skipped + '개 건너뜀';
+  if (fileListsById.__error) debugMsg = '⚠ ' + fileListsById.__error + ' | ' + debugMsg;
+  return { checked: candidates.length, updated: updated, skipped: skipped, debug: debugMsg };
+}
+
 function listDriveChildren(parentId, foldersOnly) {
   var mimeClause = '';
   if (foldersOnly === true) mimeClause = " and mimeType = '" + FOLDER_MIME + "'";
