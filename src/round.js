@@ -25,16 +25,6 @@ function readRounds() {
   return list;
 }
 
-function findRoundByName(name) {
-  var target = normalizeRoundName(name).toLowerCase();
-  if (!target) return null;
-  var list = readRounds();
-  for (var i = 0; i < list.length; i++) {
-    if (normalizeRoundName(list[i].name).toLowerCase() === target) return list[i];
-  }
-  return null;
-}
-
 function roundToArray(round, existingArr) {
   var now = new Date().toISOString();
   return ROUND_HEADERS.map(function (h, i) {

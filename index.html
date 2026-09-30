@@ -137,6 +137,7 @@
       <div class="settings-header">
         <h3 class="settings-title">+ 회차 추가</h3>
       </div>
+      <p class="subtitle" style="margin:0 0 12px;">1회차는 기업 드라이브 폴더 바로 안의 자료를 그대로 인식해요. 2회차부터는 각 기업 폴더 <strong>안에</strong> 회차 이름과 똑같은 하위 폴더(예: "2회차")를 만들어 그 안에 자료를 넣으면 자동으로 인식돼요.</p>
       <div class="settings-actions" style="align-items:flex-end; flex-wrap:wrap;">
         <label style="display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted);">회차 이름
           <input class="compose-input" id="new-round-name-input" type="text" placeholder="예: 3회차" style="height:38px; width:120px;">
@@ -153,9 +154,6 @@
             <option value="ongoing">진행중</option>
             <option value="closed">종료</option>
           </select>
-        </label>
-        <label style="display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted);">드라이브 폴더 ID
-          <input class="compose-input" id="new-round-drive-folder-input" type="text" placeholder="이 회차 전용 폴더 ID" style="height:38px; width:220px;">
         </label>
         <button id="add-round-btn" class="btn btn-primary" type="button">추가</button>
       </div>
