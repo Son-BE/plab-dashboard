@@ -1,6 +1,6 @@
   // ── 1) 여기에 배포한 Google Apps Script 웹 앱 URL을 붙여넣으세요 ───────────
   var CONFIG = {
-    API_URL: 'https://script.google.com/macros/s/AKfycby1WsZDc8jmx9qiL557w1BC1v5pDHxGfFaDLCvTABGqO1Uhpm7ZXtkq3JscBXYnZQ8d/exec',
+    API_URL: 'https://script.google.com/macros/s/AKfycbxVHBWMSP8ffP5llIHqcnsSofOm90Lk-So7BcLlozmZ226A8en4i-PduntHWSuMelmrLw/exec',
     POLL_INTERVAL_MS: 20000
   };
   // ─────────────────────────────────────────────────────────────────────
