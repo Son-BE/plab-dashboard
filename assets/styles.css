@@ -675,6 +675,15 @@
   .upload-toggle.disabled,
   .upload-toggle:disabled { cursor: not-allowed; opacity: 0.5; }
 
+  /* 업로드 체크박스 밑에 체크된 날짜를 작게 보여줘요(예: "09.30 등록"). */
+  .upload-check-date {
+    display: block;
+    margin-top: 3px;
+    font-size: 11px;
+    color: var(--success);
+    font-weight: 600;
+  }
+
   .folder-link {
     display: inline-flex;
     width: 28px;

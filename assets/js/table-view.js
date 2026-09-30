@@ -235,11 +235,18 @@
   function uploadItemsForRow(r){
     var items = [];
     for(var i=0; i<r.sessions.length; i++){
-      items.push({ field:'upSession'+(i+1), label:(i+1)+'회차', available:r.sessions[i], checked:r['upSession'+(i+1)] });
+      items.push({ field:'upSession'+(i+1), label:(i+1)+'회차', available:r.sessions[i], checked:r['upSession'+(i+1)], checkedAt:r['upSession'+(i+1)+'At'] });
     }
-    items.push({ field:'upPlan', label:'수행계획서', available:r.plan, checked:r.upPlan });
-    items.push({ field:'upReport', label:'결과보고서', available:r.report, checked:r.upReport });
+    items.push({ field:'upPlan', label:'수행계획서', available:r.plan, checked:r.upPlan, checkedAt:r.upPlanAt });
+    items.push({ field:'upReport', label:'결과보고서', available:r.report, checked:r.upReport, checkedAt:r.upReportAt });
     return items;
+  }
+
+  // "2026-09-30" -> "09.30" — 표에 넣기엔 연도까지는 굳이 안 보여줘도 돼서 월.일만 남겨요.
+  function shortCheckDate(v){
+    if(!v) return '';
+    var m = /^\d{4}-(\d{2})-(\d{2})/.exec(v);
+    return m ? (m[1] + '.' + m[2]) : v;
   }
 
   function renderUploadRowHTML(r){
@@ -251,7 +258,10 @@
       '<td data-label="폴더NC"><span class="readonly-text">' + escapeHtml(r.folderNc || '') + '</span></td>' +
       '<td data-label="권역"><span class="readonly-text">' + escapeHtml(r.region || '') + '</span></td>' +
       '<td class="sticky-col company-cell"><span class="readonly-text" title="' + escapeHtml(r.company || '') + '">' + escapeHtml(r.company || '') + '</span></td>' +
-      items.map(function(it){ return '<td class="center" data-label="' + escapeHtml(it.label) + '">' + uploadToggleHTML(r.id, it.field, it.checked, it.available) + '</td>'; }).join('') +
+      items.map(function(it){
+        var dateLabel = it.checked && it.checkedAt ? '<span class="upload-check-date">' + escapeHtml(shortCheckDate(it.checkedAt)) + ' 등록</span>' : '';
+        return '<td class="center" data-label="' + escapeHtml(it.label) + '">' + uploadToggleHTML(r.id, it.field, it.checked, it.available) + dateLabel + '</td>';
+      }).join('') +
       '<td class="center" data-label="완료">' + autoCellHTML(uploadComplete, true) + '</td>' +
     '</tr>';
   }

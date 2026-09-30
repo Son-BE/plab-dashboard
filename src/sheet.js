@@ -71,13 +71,16 @@ var FIELD_LABELS_KO = {
   date: '협약일자', folderNc: '폴더NC', region: '권역', company: '기업명',
   plan: '수행계획서', report: '결과보고서', complete: '완료', flag: '이슈', remark: '비고',
   round: '회차', contactEmail: '담당자 이메일', folderId: '폴더ID',
-  upPlan: '업로드-수행계획서', upReport: '업로드-결과보고서'
+  upPlan: '업로드-수행계획서', upReport: '업로드-결과보고서',
+  upPlanAt: '업로드-수행계획서 체크일', upReportAt: '업로드-결과보고서 체크일'
 };
 
 function fieldLabelKo(h) {
   if (FIELD_LABELS_KO[h]) return FIELD_LABELS_KO[h];
   var sMatch = /^session(\d+)$/.exec(h);
   if (sMatch) return sMatch[1] + '회차';
+  var uAtMatch = /^upSession(\d+)At$/.exec(h);
+  if (uAtMatch) return '업로드-' + uAtMatch[1] + '회차 체크일';
   var uMatch = /^upSession(\d+)$/.exec(h);
   if (uMatch) return '업로드-' + uMatch[1] + '회차';
   return h;
@@ -139,7 +142,12 @@ function readAll() {
 
     for (var n2 = 1; n2 <= MAX_SESSIONS; n2++) {
       delete obj['session' + n2];
-      if (n2 > sessionCount) delete obj['upSession' + n2];
+      if (n2 > sessionCount) {
+        delete obj['upSession' + n2];
+        delete obj['upSession' + n2 + 'At'];
+      } else {
+        obj['upSession' + n2 + 'At'] = formatDateCell(obj['upSession' + n2 + 'At']);
+      }
     }
 
     obj.sessions = sessions;
@@ -151,6 +159,8 @@ function readAll() {
     for (var n3 = 1; n3 <= sessionCount; n3++) obj['upSession' + n3] = !!obj['upSession' + n3];
     obj.upPlan = !!obj.upPlan;
     obj.upReport = !!obj.upReport;
+    obj.upPlanAt = formatDateCell(obj.upPlanAt);
+    obj.upReportAt = formatDateCell(obj.upReportAt);
     rows.push(obj);
   }
 
@@ -256,6 +266,7 @@ function setUploadField(user, id, field, value) {
     var idCol = HEADERS.indexOf('id');
     var regionCol = HEADERS.indexOf('region');
     var fieldCol = HEADERS.indexOf(field);
+    var atCol = HEADERS.indexOf(field + 'At');
     var sourceField = uploadToSource[field];
     var sourceCol = sourceField ? HEADERS.indexOf(sourceField) : -1;
     var companyCol = HEADERS.indexOf('company');
@@ -270,6 +281,11 @@ function setUploadField(user, id, field, value) {
           return { ok: false, error: 'not-available', message: '취합현황에 아직 자료가 없어서 체크할 수 없어요.' };
         }
         sheet.getRange(i + 1, fieldCol + 1).setValue(!!value);
+        // 체크하면 오늘 날짜를 같이 남기고, 체크 해제하면 날짜도 같이 지워요 — 날짜가
+        // 항상 "마지막으로 체크된 시점"만 나타내게.
+        if (atCol !== -1) {
+          sheet.getRange(i + 1, atCol + 1).setValue(value ? Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd') : '');
+        }
         appendLog(user, 'setUpload', id, values[i][companyCol], fieldLabelKo(field) + (value ? ' 체크' : ' 체크 해제'));
         return { ok: true };
       }

@@ -31,6 +31,12 @@ var HEADERS = (function () {
   // 관리자가 이슈 상태를 수동으로 고정할 때 쓰는 값('' = 자동 계산 따름). 기존 배포된 시트의
   // 컬럼 위치가 안 깨지도록 반드시 맨 끝에 추가해요.
   headers.push('flagOverride');
+  // 업로드 체크박스(upSessionN/upPlan/upReport)가 체크된 날짜예요. 체크 해제하면 같이
+  // 비워요 — "마지막으로 체크된 날짜"만 의미가 있으니까. 기존 배포된 시트의 컬럼 위치가
+  // 안 깨지도록 반드시 맨 끝에 추가해요.
+  for (var n4 = 1; n4 <= MAX_SESSIONS; n4++) headers.push('upSession' + n4 + 'At');
+  headers.push('upPlanAt');
+  headers.push('upReportAt');
   return headers;
 })();
 
