@@ -649,8 +649,27 @@
       uploadBtn.classList.toggle('on', newVal);
       uploadBtn.textContent = newVal ? '✓' : '';
       uploadBtn.setAttribute('aria-pressed', newVal);
+      // 체크 버튼은 전체 다시 그리기 없이 DOM을 직접 바꾸는 낙관적 업데이트라, 체크일
+      // 표시(.upload-check-date)도 renderUploadRowHTML을 다시 타지 않고 여기서 같이
+      // 넣거나 지워줘야 화면에 바로 보여요.
+      var atField = field + 'At';
+      var todayStr = new Date().toISOString().slice(0, 10);
+      var dateEl = uploadBtn.parentElement ? uploadBtn.parentElement.querySelector('.upload-check-date') : null;
+      if(newVal){
+        if(!dateEl){
+          dateEl = document.createElement('span');
+          dateEl.className = 'upload-check-date';
+          if(uploadBtn.parentElement) uploadBtn.parentElement.appendChild(dateEl);
+        }
+        dateEl.textContent = shortCheckDate(todayStr) + ' 등록';
+      } else if(dateEl){
+        dateEl.remove();
+      }
       var uploadRow = findRow(uid2);
-      if(uploadRow) uploadRow[field] = newVal;
+      if(uploadRow){
+        uploadRow[field] = newVal;
+        uploadRow[atField] = newVal ? todayStr : '';
+      }
       saveUploadField(uid2, field, newVal);
       return;
     }
