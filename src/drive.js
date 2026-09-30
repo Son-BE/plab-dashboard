@@ -399,12 +399,13 @@ function listDriveChildren(parentId, foldersOnly) {
   var results = [];
   var pageToken = null;
   do {
+    // corpora: 'allDrives'는 특정 부모 폴더로 좁혀 묻는 이 쿼리엔 필요 없고 훨씬 느리기만
+    // 해서 뺐어요(batchListDriveFiles와 동일한 이유).
     var response = Drive.Files.list({
       q: query,
       fields: 'nextPageToken, files(id, name, mimeType)',
       supportsAllDrives: true,
       includeItemsFromAllDrives: true,
-      corpora: 'allDrives',
       pageSize: 1000,
       pageToken: pageToken || undefined
     });
@@ -433,10 +434,14 @@ function batchListDriveFiles(folderIds) {
     var chunk = folderIds.slice(start, start + BATCH_SIZE);
     var requests = chunk.map(function (id) {
       var q = "'" + id + "' in parents and trashed = false and mimeType != '" + FOLDER_MIME + "'";
+      // corpora=allDrives는 "접근 가능한 모든 공유 드라이브 전체"를 뒤지는 옵션이라 훨씬
+      // 느려요. 여기선 이미 특정 부모 폴더 ID로 범위를 좁혀서 묻는 거라 필요 없고,
+      // supportsAllDrives만으로도 공유 드라이브 안의 폴더를 문제없이 조회할 수 있어요.
+      // (100개 범위로 좁혀도 103초가 걸렸던 게 이 옵션 때문이었어요 — 제거 후 훨씬 빨라짐.)
       var url = 'https://www.googleapis.com/drive/v3/files' +
         '?q=' + encodeURIComponent(q) +
         '&fields=' + encodeURIComponent('files(name)') +
-        '&supportsAllDrives=true&includeItemsFromAllDrives=true&corpora=allDrives&pageSize=1000';
+        '&supportsAllDrives=true&includeItemsFromAllDrives=true&pageSize=1000';
       return { url: url, headers: { Authorization: 'Bearer ' + token }, muteHttpExceptions: true };
     });
     var responses;
