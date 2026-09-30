@@ -235,9 +235,11 @@ function syncRoundFolder(round, sessionCount, keywordMap, sessionNums, startTime
   var companyList = companyFolders.length <= 8
     ? companyFolders.map(function (f) { return f.company; }).join(', ')
     : companyFolders.slice(0, 8).map(function (f) { return f.company; }).join(', ') + ' 외 ' + (companyFolders.length - 8) + '개';
+  var debugMsg = diagPrefix(companyFolders) + ', 찾은 기업 ' + companyFolders.length + '개(' + companyList + ')';
+  if (fileListsById.__error) debugMsg = '⚠ ' + fileListsById.__error + ' | ' + debugMsg;
   return {
     foldersScanned: foldersScanned, matched: matched, created: created, skipped: skipped,
-    debug: diagPrefix(companyFolders) + ', 찾은 기업 ' + companyFolders.length + '개(' + companyList + ')'
+    debug: debugMsg
   };
 }
 
@@ -270,11 +272,16 @@ function listDriveChildren(parentId, foldersOnly) {
 // 호출을 순서대로 기다려야 해서, 확인해야 할 기업이 많을수록 왕복 시간이 그대로 쌓여요.
 // UrlFetchApp.fetchAll은 여러 요청을 한 번에 보내서 네트워크 대기 시간을 거의 다 겹치게
 // 만들어주기 때문에, 같은 작업이라도 훨씬 빨리 끝나요.
+// 병렬 조회가 실패하면(주로 권한 재승인이 안 된 경우) 예전엔 조용히 빈 목록으로 넘어가서,
+// "파일이 없어서 체크가 안 됐다"와 "조회 자체가 실패해서 체크를 못 했다"를 겉보기로 구분할
+// 수 없었어요. 그래서 실패하면 byId.__error에 이유를 남겨서, 호출부가 동기화 결과 메시지에
+// 그대로 보여줄 수 있게 해요.
 function batchListDriveFiles(folderIds) {
   var byId = {};
   if (!folderIds.length) return byId;
   var token = ScriptApp.getOAuthToken();
   var BATCH_SIZE = 80; // 한 번에 너무 많이 보내면 오히려 불안정해질 수 있어서 적당히 나눠 보내요.
+  var errorNote = null;
   for (var start = 0; start < folderIds.length; start += BATCH_SIZE) {
     var chunk = folderIds.slice(start, start + BATCH_SIZE);
     var requests = chunk.map(function (id) {
@@ -289,15 +296,24 @@ function batchListDriveFiles(folderIds) {
     try {
       responses = UrlFetchApp.fetchAll(requests);
     } catch (err) {
-      // 병렬 조회 자체가 실패하면(권한 재승인이 필요한 경우 등) 빈 목록으로 처리해서, 이번
-      // 실행에서는 해당 기업들을 "파일 없음"으로 건너뛰고 다음 실행 때 다시 시도하게 해요.
       chunk.forEach(function (id) { byId[id] = []; });
+      if (!errorNote) {
+        errorNote = '파일 목록을 병렬로 조회하는 데 실패했어요(' + err.message + ') — Apps Script 에디터에서 함수를 한 번 직접 실행해 권한을 재승인해야 할 수 있어요.';
+      }
       continue;
     }
     responses.forEach(function (res, i) {
       var id = chunk[i];
       try {
-        if (res.getResponseCode() !== 200) { byId[id] = []; return; }
+        var code = res.getResponseCode();
+        if (code !== 200) {
+          byId[id] = [];
+          if (!errorNote) {
+            errorNote = '파일 목록 조회 실패(HTTP ' + code + '): ' + String(res.getContentText()).slice(0, 200) +
+              ' — 권한 재승인이 필요할 수 있어요.';
+          }
+          return;
+        }
         var data = JSON.parse(res.getContentText());
         byId[id] = (data.files || []).map(function (f) { return f.name; });
       } catch (e) {
@@ -305,6 +321,7 @@ function batchListDriveFiles(folderIds) {
       }
     });
   }
+  if (errorNote) byId.__error = errorNote;
   return byId;
 }
 
