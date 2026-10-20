@@ -213,8 +213,8 @@
     });
 
     logoutBtn.addEventListener('click', function(){
-      clearAuth();
-      location.reload();
+      var done = function(){ clearAuth(); location.reload(); };
+      if(AUTH.t){ apiPost('logout').then(done, done); } else { done(); }
     });
 
     driveSyncBtn.addEventListener('click', function(){
@@ -877,8 +877,8 @@
     }
 
     var stored = loadStoredAuth();
-    if(stored && stored.u && stored.p){
-      AUTH.u = stored.u; AUTH.p = stored.p;
+    if(stored && stored.u && stored.t){
+      AUTH.u = stored.u; AUTH.t = stored.t;
       setSyncStatus('loading');
       fetchRows().then(function(rows){
         STATE.rows = rows.length ? rows : (isAdmin() ? exampleRows() : []);

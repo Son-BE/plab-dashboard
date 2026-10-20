@@ -49,8 +49,10 @@
   // ── 로그인/권한 상태 ─────────────────────────────────────────────
   // 계정별 아이디·비밀번호·권한은 apps-script-code.gs의 USERS 목록에서 관리해요.
   // 여기서는 로그인 후 서버가 알려준 role('admin'|'viewer')과 region만 들고 있어요.
-  var AUTH_STORAGE_KEY = 'mt_auth_v1';
-  var AUTH = { u:null, p:null, role:null, region:null };
+  // v2부터는 비밀번호가 아니라 로그인 토큰만 저장해요. 예전(v1)에 저장된 비밀번호는 지워요.
+  var AUTH_STORAGE_KEY = 'mt_auth_v2';
+  try{ localStorage.removeItem('mt_auth_v1'); }catch(e){}
+  var AUTH = { u:null, p:null, t:null, role:null, region:null };
   var pollingStarted = false;
 
   var statsGrid, quickPanelsEl, rowsBody, tableHeadEl, rowCountLabel, searchInput, regionNavEl, roundNavEl, stepMessageEl, filterStatus, filterFlag,
@@ -91,6 +93,7 @@
     try{ localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(auth)); }catch(e){}
   }
   function clearAuth(){
+    AUTH.t = null; AUTH.p = null;
     try{ localStorage.removeItem(AUTH_STORAGE_KEY); }catch(e){}
   }
 

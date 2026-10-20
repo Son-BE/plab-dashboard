@@ -1,8 +1,9 @@
   // 서버와 통신하는 모든 곳(관리 페이지들의 저장/삭제 버튼, 표 저장, 로그인 등)이 거의
   // 똑같은 POST/GET 틀(헤더, u/p 첨부, res.ok 체크, 캐시버스팅)을 반복하고 있어서 하나로
   // 모았어요. 실패 시 처리(alert 여부 등)는 호출부마다 달라서 그대로 각자 .then/.catch에 둬요.
+  // 비밀번호 대신 로그인 때 받은 토큰(t)만 실어 보내요.
   function apiPost(action, payload){
-    var body = Object.assign({ action: action, u: AUTH.u, p: AUTH.p }, payload || {});
+    var body = Object.assign({ action: action, t: AUTH.t }, payload || {});
     return fetch(apiUrl, {
       method:'POST',
       cache:'no-store',
@@ -14,12 +15,20 @@
     });
   }
 
-  // action을 안 주면 fetchRows()처럼 action 파라미터 없는 기본 조회로 동작해요.
+  // 조회도 POST로 보내요 — 예전엔 GET 주소(?u=..&p=..)에 아이디·비밀번호가 실려
+  // 브라우저 기록·서버 로그에 남을 수 있었어요. action을 안 주면 기본 조회예요.
   function apiGet(action){
-    var bustUrl = apiUrl + (apiUrl.indexOf('?') === -1 ? '?' : '&') + '_=' + Date.now() +
-      '&u=' + encodeURIComponent(AUTH.u || '') + '&p=' + encodeURIComponent(AUTH.p || '') +
-      (action ? ('&action=' + action) : '');
-    return fetch(bustUrl, { method:'GET', cache:'no-store' }).then(function(res){
+    return apiPost('read', action ? { sub: action } : {});
+  }
+
+  // 로그인: 아이디·비밀번호는 이때 한 번만 보내고, 이후엔 서버가 준 토큰만 써요.
+  function apiLogin(username, password){
+    return fetch(apiUrl, {
+      method:'POST',
+      cache:'no-store',
+      headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action:'login', u:username, p:password })
+    }).then(function(res){
       if(!res.ok) throw new Error('HTTP ' + res.status);
       return res.json();
     });
@@ -151,13 +160,22 @@
   }
 
   function attemptLogin(username, password){
-    AUTH.u = username; AUTH.p = password;
     loginSubmit.disabled = true;
     loginSubmit.textContent = '확인 중…';
     loginError.hidden = true;
     setSyncStatus('loading');
-    fetchRows().then(function(rows){
-      saveAuth({ u: username, p: password });
+    apiLogin(username, password).then(function(res){
+      if(!res || !res.ok || !res.token){
+        var err = new Error((res && res.message) || '아이디 또는 비밀번호가 올바르지 않아요.');
+        err.isAuthError = true;
+        throw err;
+      }
+      AUTH.u = res.username || username; AUTH.t = res.token; AUTH.p = null;
+      AUTH.role = res.role; AUTH.region = res.region;
+      if(loginPassword) loginPassword.value = '';
+      return fetchRows();
+    }).then(function(rows){
+      saveAuth({ u: AUTH.u, t: AUTH.t });
       STATE.rows = rows.length ? rows : (isAdmin() ? exampleRows() : []);
       hideLoginScreen();
       setSyncStatus('synced');
@@ -167,7 +185,7 @@
       startPolling();
     }).catch(function(err){
       console.error(err);
-      AUTH.u = null; AUTH.p = null;
+      AUTH.u = null; AUTH.p = null; AUTH.t = null;
       loginSubmit.disabled = false;
       loginSubmit.textContent = '로그인';
       loginError.textContent = (err && err.isAuthError) ? err.message : '연결에 실패했어요. 잠시 후 다시 시도해 주세요.';
